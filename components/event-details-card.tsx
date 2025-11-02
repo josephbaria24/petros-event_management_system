@@ -1,10 +1,7 @@
-//components/event-details-card.tsx
-// Note: Import Textarea from your UI components
-// import { Textarea } from "@/components/ui/textarea"
 "use client"
 
 import { useState } from "react"
-import { Edit2, MoreVertical, FileUp, Award, Download, BarChart3, Upload, UserPlus, Mail, Palette } from "lucide-react"
+import { Edit2, MoreVertical, FileUp, Award, Download, BarChart3, Upload, UserPlus, Mail, Palette, Users, CheckCircle2, CreditCard } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -15,12 +12,21 @@ import CertificateTemplateModal from "@/components/certificate-template-modal"
 import ExportAttendeesModal from "@/components/export-attendees-modal"
 import { supabase } from "@/lib/supabase-client"
 
-export function EventDetailsCard({ event }: { event: Event }) {
+// Extended Event type with stats
+type EventWithStats = Omit<Event, "attendees"> & {
+  attendees: {
+    registered: number
+    attended: number
+    paid: number
+  }
+}
+
+export function EventDetailsCard({ event }: { event: EventWithStats }) {
   const [isEditing, setIsEditing] = useState(false)
   const [editedEvent, setEditedEvent] = useState(event)
   const [topicInput, setTopicInput] = useState("")
+  
   const handleSave = async () => {
-    // Update the description in the database
     const { error } = await supabase
       .from('events')
       .update({ 
@@ -38,7 +44,7 @@ export function EventDetailsCard({ event }: { event: Event }) {
       setIsEditing(false)
     }
   }
-  const [showRegistrationForm, setShowRegistrationForm] = useState(false);
+  
   const [showSendEvaluationsModal, setShowSendEvaluationsModal] = useState(false)
   const [showTemplateEditor, setShowTemplateEditor] = useState(false)
   const [showExportModal, setShowExportModal] = useState(false)
@@ -73,37 +79,36 @@ export function EventDetailsCard({ event }: { event: Event }) {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               {actions.map((action) => {
-              const Icon = action.icon
-
-              return (
-                <DropdownMenuItem
-                  key={action.label}
-                  className="cursor-pointer "
-                  onClick={async () => {
-                    if (action.label === "Open Registration") {
-                      if (!event.magic_link) {
-                        alert("⚠️ This event doesn't have a registration link yet.")
-                        return
+                const Icon = action.icon
+                return (
+                  <DropdownMenuItem
+                    key={action.label}
+                    className="cursor-pointer"
+                    onClick={async () => {
+                      if (action.label === "Open Registration") {
+                        if (!event.magic_link) {
+                          alert("⚠️ This event doesn't have a registration link yet.")
+                          return
+                        }
+                        window.open(`/register?ref=${event.magic_link}`, "_blank")
                       }
-                      window.open(`/register?ref=${event.magic_link}`, "_blank")
-                    }
-                    if (action.label === "Edit Certificate Template") {
-                      setShowTemplateEditor(true)
-                    }
-                    if (action.label === "Send Evaluations") {
-                      setShowSendEvaluationsModal(true)
-                    }
-                    if (action.label === "Export Attendees") {
-                      setShowExportModal(true)
-                    }
-                  }}
-                >
-                  <Icon className="mr-2 h-4 w-4 hover:text-white" />
-                  <span>{action.label}</span>
-                </DropdownMenuItem>
-              )
+                      if (action.label === "Edit Certificate Template") {
+                        setShowTemplateEditor(true)
+                      }
+                      if (action.label === "Send Evaluations") {
+                        setShowSendEvaluationsModal(true)
+                      }
+                      if (action.label === "Export Attendees") {
+                        setShowExportModal(true)
+                      }
+                    }}
+                  >
+                    <Icon className="mr-2 h-4 w-4 hover:text-white" />
+                    <span>{action.label}</span>
+                  </DropdownMenuItem>
+                )
               })}
-              </DropdownMenuContent>
+            </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </CardHeader>
@@ -189,7 +194,7 @@ export function EventDetailsCard({ event }: { event: Event }) {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Price</p>
-                  <p className="font-semibold text-foreground">${editedEvent.price}</p>
+                  <p className="font-semibold text-foreground">₱{editedEvent.price.toLocaleString()}</p>
                 </div>
               </div>
 
@@ -333,9 +338,26 @@ export function EventDetailsCard({ event }: { event: Event }) {
                 </div>
               </div>
 
+              {/* 📊 Attendee Stats Section */}
               <div className="pt-4 border-t border-border">
-                <p className="text-sm font-medium text-muted-foreground">Total Attendees</p>
-                <p className="text-2xl font-bold text-primary">{editedEvent.attendees}</p>
+                <p className="text-sm font-medium text-muted-foreground mb-3">Attendee Statistics</p>
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
+                    <Users className="h-5 w-5 mx-auto text-blue-500 mb-2" />
+                    <p className="text-2xl font-bold text-foreground">{event.attendees.registered}</p>
+                    <p className="text-xs text-muted-foreground">Registered</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800">
+                    <CheckCircle2 className="h-5 w-5 mx-auto text-green-600 mb-2" />
+                    <p className="text-2xl font-bold text-foreground">{event.attendees.attended}</p>
+                    <p className="text-xs text-muted-foreground">Attended</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
+                    <CreditCard className="h-5 w-5 mx-auto text-amber-600 mb-2" />
+                    <p className="text-2xl font-bold text-foreground">{event.attendees.paid}</p>
+                    <p className="text-xs text-muted-foreground">Paid</p>
+                  </div>
+                </div>
               </div>
             </div>
           )}

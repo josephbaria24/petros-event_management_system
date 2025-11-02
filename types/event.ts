@@ -1,3 +1,4 @@
+// Base Event type
 export type Event = {
   id: string
   name: string
@@ -6,15 +7,24 @@ export type Event = {
   price: number
   venue: string
   schedule: DaySchedule[]
-  attendees: number
+  attendees: number // This can be a single number for backwards compatibility
   createdAt: string
-  magic_link?: string   // ✅ Add this line
-  start_date?: string   // optional, matches DB
-  end_date?: string     // optional, matches DB
+  magic_link?: string
+  start_date?: string
+  end_date?: string
+}
+
+// Extended Event type with detailed attendee stats
+export type EventWithStats = Omit<Event, "attendees"> & {
+  attendees: {
+    registered: number
+    attended: number
+    paid: number
+  }
 }
 
 export interface DaySchedule {
-  date: string // change from "day" to "date"
+  date: string
   timeIn: string
   timeOut: string
   coveredTopics: string[]

@@ -1,4 +1,3 @@
-//components\event-details.tsx
 "use client"
 import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -8,44 +7,88 @@ import type { Event } from "@/types/event"
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase-client"
 
+// Extended Event type with stats
+type EventWithStats = Omit<Event, "attendees"> & {
+  attendees: {
+    registered: number
+    attended: number
+    paid: number
+  }
+}
 
 export function EventDetails({ eventId, onBack }: { eventId: string; onBack: () => void }) {
-  // Mock event data - in a real app, this would be fetched
-  
-
-  const [event, setEvent] = useState<Event | null>(null)
+  const [event, setEvent] = useState<EventWithStats | null>(null)
 
   useEffect(() => {
     const fetchEvent = async () => {
+      // Fetch event details
       const { data, error } = await supabase
         .from("events")
         .select("*, magic_link, schedules")
         .eq("id", parseInt(eventId))
         .single()
   
-      if (data) {
-        const attendeeCount = await supabase
-          .from("attendees")
-          .select("*", { count: "exact", head: true })
-          .eq("event_id", data.id)
-  
-        setEvent({
-          id: data.id.toString(),
-          name: data.name,
-          type: data.type,
-          price: Number(data.price),
-          venue: data.venue,
-          schedule: data.schedules ?? [],
-          attendees: attendeeCount.count ?? 0,
-          createdAt: data.created_at,
-          magic_link: data.magic_link,
-        })
+      if (error) {
+        console.error("Error fetching event:", error)
+        return
       }
+
+      if (!data) return
+
+      // Fetch all attendees for this event with their attendance and payment data
+      const { data: attendeesData, error: attendeesError } = await supabase
+        .from("attendees")
+        .select("attendance, payment_status")
+        .eq("event_id", data.id)
+
+      if (attendeesError) {
+        console.error("Error fetching attendees:", attendeesError)
+      }
+
+      // Calculate stats
+      const stats = {
+        registered: 0,
+        attended: 0,
+        paid: 0,
+      }
+
+      attendeesData?.forEach((attendee) => {
+        // Count all attendees as registered
+        stats.registered += 1
+
+        // Count attended (those with non-empty attendance object)
+        if (
+          attendee.attendance && 
+          typeof attendee.attendance === 'object' && 
+          Object.keys(attendee.attendance).length > 0
+        ) {
+          stats.attended += 1
+        }
+
+        // Count paid (those with "Fully Paid" status)
+        if (attendee.payment_status === "Fully Paid") {
+          stats.paid += 1
+        }
+      })
+
+      setEvent({
+        id: data.id.toString(),
+        name: data.name,
+        description: data.description,
+        type: data.type,
+        price: Number(data.price),
+        venue: data.venue,
+        schedule: data.schedules ?? [],
+        attendees: stats, // Now using stats object instead of single number
+        createdAt: data.created_at,
+        magic_link: data.magic_link,
+        start_date: data.start_date,
+        end_date: data.end_date,
+      })
     }
   
     fetchEvent()
   }, [eventId])
-
 
   if (!event) {
     return (
@@ -54,9 +97,6 @@ export function EventDetails({ eventId, onBack }: { eventId: string; onBack: () 
       </main>
     )
   }
-
-  
-
 
   return (
     <main className="p-6">
@@ -76,19 +116,11 @@ export function EventDetails({ eventId, onBack }: { eventId: string; onBack: () 
 
         {/* Two Column Layout */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            {event ? (
-              <>
-                <EventDetailsCard event={event} />
-                <AttendeesList
-                  eventId={eventId}
-                  scheduleDates={event.schedule.map((s) => ({ date: s.date }))}
-                />
-
-              </>
-            ) : (
-              <p>Loading event...</p>
-            )}
-
+          <EventDetailsCard event={event} />
+          <AttendeesList
+            eventId={eventId}
+            scheduleDates={event.schedule.map((s) => ({ date: s.date }))}
+          />
         </div>
       </div>
     </main>

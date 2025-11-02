@@ -1,14 +1,31 @@
 "use client"
 
 import type React from "react"
+import { useRouter } from "next/navigation"
 import { Calendar, Settings, LogOut, Bell, Search } from "lucide-react"
-import { toast } from "sonner" // ✅ Import Sonner
+import { toast } from "sonner"
+import { supabase } from "@/lib/supabase-client"
 
 export function Navigation() {
+  const router = useRouter()
+
+  // 🚧 For unfinished features
   const handleComingSoon = () => {
-    toast.info("🚧 This feature will be available soon!", {
-      duration: 3000,
-    })
+    toast.info("🚧 This feature will be available soon!", { duration: 3000 })
+  }
+
+  // 🚪 Logout handler
+  const handleLogout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut()
+      if (error) throw error
+
+      toast.success("👋 You’ve been logged out successfully.")
+      router.replace("/login") // redirect to login
+    } catch (err: any) {
+      console.error("Logout error:", err)
+      toast.error("Failed to log out. Please try again.")
+    }
   }
 
   return (
@@ -54,7 +71,11 @@ export function Navigation() {
           </button>
 
           {/* 🚪 Logout */}
-          <button className="p-2 text-muted-foreground hover:text-foreground">
+          <button
+            onClick={handleLogout}
+            className="p-2 text-muted-foreground hover:text-destructive"
+            title="Logout"
+          >
             <LogOut className="h-5 w-5" />
           </button>
         </div>

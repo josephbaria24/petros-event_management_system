@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
@@ -28,7 +28,26 @@ export function LoginForm({
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
+  const [checkingSession, setCheckingSession] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // ✅ Check existing session
+  useEffect(() => {
+    const checkSession = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      if (session) {
+        // Already logged in → redirect to home
+        router.replace("/")
+      } else {
+        setCheckingSession(false)
+      }
+    }
+
+    checkSession()
+  }, [router])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -52,11 +71,17 @@ export function LoginForm({
     }
   }
 
+  // 🕒 Prevent flicker while checking session
+  if (checkingSession) {
+    return (
+      <main className="flex items-center justify-center min-h-screen">
+        <p className="text-gray-500">Checking session...</p>
+      </main>
+    )
+  }
+
   return (
-    <main
-      className="flex items-center justify-center min-h-screen px-4"
-      
-    >
+    <main className="flex items-center justify-center min-h-screen px-4">
       <div className="w-full max-w-md">
         <Card
           className="shadow-2xl border-none rounded-2xl overflow-hidden"
@@ -125,8 +150,7 @@ export function LoginForm({
                   disabled={loading}
                   className="w-full mt-4 py-2 text-white font-semibold rounded-lg transition-all duration-200"
                   style={{
-                    background:
-                      "linear-gradient(to right, #16a34a, #2563eb)", // Green → Blue
+                    background: "linear-gradient(to right, #16a34a, #2563eb)",
                   }}
                 >
                   {loading ? "Logging in..." : "Login"}
@@ -143,7 +167,7 @@ export function LoginForm({
           </CardContent>
         </Card>
 
-        <p className="text-center text-white mt-6 text-sm">
+        <p className="text-center text-gray-600 mt-6 text-sm">
           © {new Date().getFullYear()} WASPI Event Management System
         </p>
       </div>
