@@ -2,16 +2,36 @@
 
 import type React from "react"
 import { useRouter } from "next/navigation"
-import { Calendar, Settings, LogOut, Bell, Search } from "lucide-react"
+import { Calendar, Settings, LogOut, Bell, Search, QrCode } from "lucide-react"
 import { toast } from "sonner"
 import { supabase } from "@/lib/supabase-client"
 
-export function Navigation() {
+interface NavigationProps {
+  currentEventId?: string | null
+  onQRScanClick?: () => void
+}
+
+export function Navigation({ currentEventId, onQRScanClick }: NavigationProps) {
   const router = useRouter()
 
   // 🚧 For unfinished features
   const handleComingSoon = () => {
     toast.info("🚧 This feature will be available soon!", { duration: 3000 })
+  }
+
+  // Handle QR Scanner navigation
+  const handleQRScanner = () => {
+    if (currentEventId) {
+      // If parent provides onQRScanClick callback, use it
+      if (onQRScanClick) {
+        onQRScanClick()
+      } else {
+        // Otherwise try URL navigation
+        router.push(`/events/${currentEventId}/qr-scan`)
+      }
+    } else {
+      toast.error("Please select an event first to use QR Scanner")
+    }
   }
 
   // 🚪 Logout handler
@@ -20,7 +40,7 @@ export function Navigation() {
       const { error } = await supabase.auth.signOut()
       if (error) throw error
 
-      toast.success("👋 You’ve been logged out successfully.")
+      toast.success("👋 You've been logged out successfully.")
       router.replace("/login") // redirect to login
     } catch (err: any) {
       console.error("Logout error:", err)
@@ -34,7 +54,7 @@ export function Navigation() {
         {/* Left side (Logo) */}
         <div className="flex items-center gap-2">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-transparent text-primary-foreground font-bold text-sm">
-            <img src="waspi-logo.png" alt="Logo" className="h-10 w-10 object-contain" />
+            <img src="/waspi-logo.png" alt="Logo" className="h-10 w-10 object-contain" />
           </div>
 
           {/* Text stacked vertically */}
@@ -47,6 +67,12 @@ export function Navigation() {
         {/* Center (Navigation Menu) */}
         <div className="absolute left-1/2 transform -translate-x-1/2 flex gap-1">
           <NavIcon icon={Calendar} label="Events" active />
+          <NavIcon 
+            icon={QrCode} 
+            label="QR Scanner" 
+            onClick={handleQRScanner}
+            disabled={!currentEventId}
+          />
           <NavIcon icon={Settings} label="Settings" onClick={handleComingSoon} />
         </div>
 
@@ -89,18 +115,23 @@ function NavIcon({
   label,
   active,
   onClick,
+  disabled,
 }: {
   icon: React.ComponentType<{ className?: string }>
   label: string
   active?: boolean
   onClick?: () => void
+  disabled?: boolean
 }) {
   return (
     <button
       onClick={onClick}
+      disabled={disabled}
       className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
         active
           ? "bg-primary text-primary-foreground"
+          : disabled
+          ? "text-muted-foreground/50 cursor-not-allowed"
           : "text-muted-foreground hover:bg-secondary hover:text-foreground"
       }`}
     >

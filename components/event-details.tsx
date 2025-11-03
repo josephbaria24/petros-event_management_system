@@ -1,3 +1,4 @@
+//components\event-details.tsx
 "use client"
 import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
