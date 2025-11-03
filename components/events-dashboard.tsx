@@ -9,10 +9,7 @@ import { EventCard } from "@/components/event-card"
 import type { Event } from "@/types/event"
 import { supabase } from "@/lib/supabase-client"
 
-// Import the utility function (if you create the separate file)
-// import { fetchAllAttendees } from "@/lib/fetch-all-attendees"
-
-// 👇 Extended version of Event that adds attendee stats
+// Extended version of Event that adds attendee stats
 type EventWithStats = Omit<Event, "attendees"> & {
   attendees: {
     registered: number
@@ -21,7 +18,7 @@ type EventWithStats = Omit<Event, "attendees"> & {
   }
 }
 
-// ⚡ Helper function to fetch ALL attendees (no 1000 limit)
+// Helper function to fetch ALL attendees (no 1000 limit)
 async function fetchAllAttendees(eventId?: number) {
   const PAGE_SIZE = 1000
   let allAttendees: any[] = []
@@ -73,7 +70,7 @@ export function EventsDashboard({ onSelectEvent }: { onSelectEvent: (id: string)
     const fetchEvents = async () => {
       setIsLoading(true)
       
-      // 🗓️ Get all events
+      // Get all events
       const { data: eventsData, error } = await supabase.from("events").select("*")
       if (error) {
         console.error("Error fetching events:", error)
@@ -86,12 +83,12 @@ export function EventsDashboard({ onSelectEvent }: { onSelectEvent: (id: string)
         return
       }
 
-      // 👥 Get ALL attendees (no 1000 row limit) using pagination
+      // Get ALL attendees (no 1000 row limit) using pagination
       const attendeesData = await fetchAllAttendees()
 
       console.log(`✅ Fetched ${attendeesData.length} attendees total`)
 
-      // 🧮 Build event stats
+      // Build event stats
       const attendeeStatsMap = new Map<
         number,
         { registered: number; attended: number; paid: number }
@@ -107,10 +104,10 @@ export function EventsDashboard({ onSelectEvent }: { onSelectEvent: (id: string)
           paid: 0,
         }
       
-        // 📊 Registered: Count ALL attendees
+        // Registered: Count ALL attendees
         stats.registered += 1
       
-        // ✅ Attended: Count attendees with non-empty attendance object
+        // Attended: Count attendees with non-empty attendance object
         if (
           attendee.attendance && 
           typeof attendee.attendance === 'object' && 
@@ -119,7 +116,7 @@ export function EventsDashboard({ onSelectEvent }: { onSelectEvent: (id: string)
           stats.attended += 1
         }
       
-        // 💳 Paid: Count attendees with "Fully Paid" status
+        // Paid: Count attendees with "Fully Paid" status
         if (attendee.payment_status === "Fully Paid") {
           stats.paid += 1
         }
@@ -127,7 +124,7 @@ export function EventsDashboard({ onSelectEvent }: { onSelectEvent: (id: string)
         attendeeStatsMap.set(eventId, stats)
       })
 
-      // 🧾 Format events
+      // Format events
       const formattedEvents: EventWithStats[] = eventsData.map((event) => {
         const stats = attendeeStatsMap.get(event.id) ?? {
           registered: 0,
@@ -155,10 +152,10 @@ export function EventsDashboard({ onSelectEvent }: { onSelectEvent: (id: string)
         }
       })
 
-      // ✅ Helper to safely parse optional date strings
+      // Helper to safely parse optional date strings
       const parseDate = (value?: string) => (value ? new Date(value) : new Date(0))
 
-      // 🧠 Sort events by date (upcoming first)
+      // Sort events by date (upcoming first)
       const now = new Date()
       const upcoming = formattedEvents.filter((e) => parseDate(e.end_date) >= now)
       const past = formattedEvents.filter((e) => parseDate(e.end_date) < now)
@@ -189,7 +186,7 @@ export function EventsDashboard({ onSelectEvent }: { onSelectEvent: (id: string)
   const upcomingEvents = events.filter((e) => parseDate(e.end_date) >= now)
   const pastEvents = events.filter((e) => parseDate(e.end_date) < now)
 
-  // 📊 Calculate total stats across all events
+  // Calculate total stats across all events
   const totalStats = events.reduce(
     (acc, event) => ({
       registered: acc.registered + event.attendees.registered,
@@ -206,7 +203,7 @@ export function EventsDashboard({ onSelectEvent }: { onSelectEvent: (id: string)
 
   if (isLoading) {
     return (
-      <main className="p-6">
+      <main className="p-4 sm:p-6">
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
@@ -218,87 +215,88 @@ export function EventsDashboard({ onSelectEvent }: { onSelectEvent: (id: string)
   }
 
   return (
-    <main className="p-6">
-      <div className="space-y-6">
+    <main className="p-4 sm:p-6">
+      <div className="space-y-4 sm:space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Events</h1>
-            <p className="text-muted-foreground">Manage your events and attendees</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Events</h1>
+            <p className="text-sm sm:text-base text-muted-foreground hidden sm:block">Manage your events and attendees</p>
           </div>
           <Button
             onClick={() => setIsModalOpen(true)}
             className="bg-primary text-primary-foreground hover:bg-accent"
-            size="lg"
+            size="sm"
           >
-            <Plus className="mr-2 h-4 w-4" />
-            Create Event
+            <Plus className="mr-1 h-4 w-4" />
+            <span className="hidden sm:inline">Create Event</span>
+            <span className="sm:hidden">Create</span>
           </Button>
         </div>
 
-        {/* 📊 Stats Overview Cards */}
+        {/* Stats Overview Cards */}
         {events.length > 0 && (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             {/* Total Events */}
             <Card className="border-l-4 border-l-primary">
-              <CardContent className="pt-6">
+              <CardContent className="pt-4 pb-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Total Events</p>
-                    <p className="text-3xl font-bold text-foreground mt-2">{events.length}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
+                    <p className="text-xs font-medium text-muted-foreground">Total Events</p>
+                    <p className="text-2xl sm:text-3xl font-bold text-foreground mt-1">{events.length}</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
                       {upcomingEvents.length} upcoming • {pastEvents.length} past
                     </p>
                   </div>
-                  <CalendarDays className="h-10 w-10 text-primary opacity-20" />
+                  <CalendarDays className="h-8 w-8 sm:h-10 sm:w-10 text-primary opacity-20" />
                 </div>
               </CardContent>
             </Card>
 
             {/* Registered Attendees */}
             <Card className="border-l-4 border-l-blue-500">
-              <CardContent className="pt-6">
+              <CardContent className="pt-4 pb-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Registered</p>
-                    <p className="text-3xl font-bold text-foreground mt-2">{totalStats.registered}</p>
-                    <p className="text-xs text-muted-foreground mt-1">Total attendees</p>
+                    <p className="text-xs font-medium text-muted-foreground">Registered</p>
+                    <p className="text-2xl sm:text-3xl font-bold text-foreground mt-1">{totalStats.registered}</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">Total attendees</p>
                   </div>
-                  <Users className="h-10 w-10 text-blue-500 opacity-20" />
+                  <Users className="h-8 w-8 sm:h-10 sm:w-10 text-blue-500 opacity-20" />
                 </div>
               </CardContent>
             </Card>
 
             {/* Attended */}
             <Card className="border-l-4 border-l-green-600">
-              <CardContent className="pt-6">
+              <CardContent className="pt-4 pb-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Attended</p>
-                    <p className="text-3xl font-bold text-foreground mt-2">{totalStats.attended}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
+                    <p className="text-xs font-medium text-muted-foreground">Attended</p>
+                    <p className="text-2xl sm:text-3xl font-bold text-foreground mt-1">{totalStats.attended}</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
                       {attendanceRate}% attendance rate
                     </p>
                   </div>
-                  <CheckCircle2 className="h-10 w-10 text-green-600 opacity-20" />
+                  <CheckCircle2 className="h-8 w-8 sm:h-10 sm:w-10 text-green-600 opacity-20" />
                 </div>
               </CardContent>
             </Card>
 
             {/* Fully Paid */}
             <Card className="border-l-4 border-l-amber-600">
-              <CardContent className="pt-6">
+              <CardContent className="pt-4 pb-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Fully Paid</p>
-                    <p className="text-3xl font-bold text-foreground mt-2">{totalStats.paid}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
+                    <p className="text-xs font-medium text-muted-foreground">Fully Paid</p>
+                    <p className="text-2xl sm:text-3xl font-bold text-foreground mt-1">{totalStats.paid}</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
                       {totalStats.registered > 0 
                         ? Math.round((totalStats.paid / totalStats.registered) * 100)
                         : 0}% payment rate
                     </p>
                   </div>
-                  <CreditCard className="h-10 w-10 text-amber-600 opacity-20" />
+                  <CreditCard className="h-8 w-8 sm:h-10 sm:w-10 text-amber-600 opacity-20" />
                 </div>
               </CardContent>
             </Card>
@@ -308,14 +306,14 @@ export function EventsDashboard({ onSelectEvent }: { onSelectEvent: (id: string)
         {/* Upcoming Events */}
         {upcomingEvents.length > 0 && (
           <>
-            <div className="flex items-center gap-2 mt-8">
-              <CalendarDays className="h-6 w-6 text-green-600" />
-              <h2 className="text-2xl font-semibold text-foreground">Upcoming Events</h2>
-              <span className="ml-2 rounded-full bg-green-100 dark:bg-green-900/30 px-3 py-1 text-sm font-medium text-green-700 dark:text-green-400">
+            <div className="flex items-center gap-2 mt-6 sm:mt-8">
+              <CalendarDays className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
+              <h2 className="text-xl sm:text-2xl font-semibold text-foreground">Upcoming Events</h2>
+              <span className="ml-1 sm:ml-2 rounded-full bg-green-100 dark:bg-green-900/30 px-2 sm:px-3 py-0.5 sm:py-1 text-xs sm:text-sm font-medium text-green-700 dark:text-green-400">
                 {upcomingEvents.length}
               </span>
             </div>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {upcomingEvents.map((event) => (
                 <EventCard key={event.id} event={event} onSelect={() => onSelectEvent(event.id)} />
               ))}
@@ -326,14 +324,14 @@ export function EventsDashboard({ onSelectEvent }: { onSelectEvent: (id: string)
         {/* Past Events */}
         {pastEvents.length > 0 && (
           <>
-            <div className="flex items-center gap-2 mt-10">
-              <Clock4 className="h-6 w-6 text-muted-foreground" />
-              <h2 className="text-2xl font-semibold text-foreground">Past Events</h2>
-              <span className="ml-2 rounded-full bg-gray-100 dark:bg-gray-800 px-3 py-1 text-sm font-medium text-gray-700 dark:text-gray-400">
+            <div className="flex items-center gap-2 mt-8 sm:mt-10">
+              <Clock4 className="h-5 w-5 sm:h-6 sm:w-6 text-muted-foreground" />
+              <h2 className="text-xl sm:text-2xl font-semibold text-foreground">Past Events</h2>
+              <span className="ml-1 sm:ml-2 rounded-full bg-gray-100 dark:bg-gray-800 px-2 sm:px-3 py-0.5 sm:py-1 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-400">
                 {pastEvents.length}
               </span>
             </div>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {pastEvents.map((event) => (
                 <EventCard key={event.id} event={event} onSelect={() => onSelectEvent(event.id)} />
               ))}

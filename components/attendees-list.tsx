@@ -1,3 +1,4 @@
+// Updated AttendeesList with Quick Actions Feature
 "use client"
 
 import { useEffect, useState } from "react"
@@ -9,23 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-
-// Mock supabase for demo
-const supabase = {
-  from: (table: string) => ({
-    select: (columns: string) => ({
-      eq: (column: string, value: any) => ({
-        data: [],
-        error: null
-      })
-    }),
-    update: (data: any) => ({
-      eq: (column: string, value: any) => ({
-        error: null
-      })
-    })
-  })
-};
+import { supabase } from "@/lib/supabase-client"
 
 interface Attendee {
   id: number
@@ -50,38 +35,9 @@ interface EventScheduleDate {
 
 type QuickActionMode = "payment" | "attendance" | null
 
-export function AttendeesList({ 
-  eventId = "1", 
-  scheduleDates = [
-    { date: "2025-11-06" },
-    { date: "2025-11-07" },
-    { date: "2025-11-08" }
-  ]
-}: { 
-  eventId?: string; 
-  scheduleDates?: EventScheduleDate[] 
-}) {
+export function AttendeesList({ eventId, scheduleDates }: { eventId: string; scheduleDates: EventScheduleDate[] }) {
   const [searchQuery, setSearchQuery] = useState("")
-  const [attendees, setAttendees] = useState<Attendee[]>([
-    {
-      id: 1,
-      name: "John Doe",
-      email: "john@example.com",
-      attendance: [],
-      personal_name: "John",
-      last_name: "Doe",
-      payment_status: "Pending"
-    },
-    {
-      id: 2,
-      name: "Jane Smith",
-      email: "jane@example.com",
-      attendance: [],
-      personal_name: "Jane",
-      last_name: "Smith",
-      payment_status: "Fully Paid"
-    }
-  ])
+  const [attendees, setAttendees] = useState<Attendee[]>([])
   const [editingAttendee, setEditingAttendee] = useState<Attendee | null>(null)
   const [editForm, setEditForm] = useState<Partial<Attendee>>({})
   const [saving, setSaving] = useState(false)
@@ -90,6 +46,38 @@ export function AttendeesList({
   const [quickActionMode, setQuickActionMode] = useState<QuickActionMode>(null)
   const [selectedIds, setSelectedIds] = useState<number[]>([])
   const [selectedDate, setSelectedDate] = useState<string>("")
+
+  useEffect(() => {
+    const fetchAttendees = async () => {
+      const { data, error } = await supabase
+        .from("attendees")
+        .select("*")
+        .eq("event_id", parseInt(eventId))
+
+      if (data) {
+        setAttendees(
+          data.map((a: any) => ({
+            id: a.id,
+            name: `${a.personal_name ?? ""} ${a.last_name ?? ""}`.trim(),
+            email: a.email ?? "",
+            attendance: a.attendance || [],
+            personal_name: a.personal_name,
+            middle_name: a.middle_name,
+            last_name: a.last_name,
+            mobile_number: a.mobile_number,
+            date_of_birth: a.date_of_birth,
+            address: a.address,
+            company: a.company,
+            position: a.position,
+            company_address: a.company_address,
+            payment_status: a.payment_status || "Pending"
+          }))
+        )
+      }
+    }
+
+    fetchAttendees()
+  }, [eventId])
 
   const toggleAttendance = async (attendeeId: number, isoDate: string) => {
     const epochDate = new Date(isoDate).getTime()
@@ -110,6 +98,11 @@ export function AttendeesList({
       updatedAttendance = updatedAttendance.filter((a) => a.date !== epochDate)
     }
   
+    await supabase
+      .from("attendees")
+      .update({ attendance: updatedAttendance })
+      .eq("id", attendeeId)
+  
     setAttendees((prev) =>
       prev.map((a) =>
         a.id === attendeeId ? { ...a, attendance: updatedAttendance } : a
@@ -118,11 +111,18 @@ export function AttendeesList({
   }
 
   const updatePaymentStatus = async (attendeeId: number, status: string) => {
-    setAttendees((prev) =>
-      prev.map((a) =>
-        a.id === attendeeId ? { ...a, payment_status: status } : a
+    const { error } = await supabase
+      .from("attendees")
+      .update({ payment_status: status })
+      .eq("id", attendeeId)
+
+    if (!error) {
+      setAttendees((prev) =>
+        prev.map((a) =>
+          a.id === attendeeId ? { ...a, payment_status: status } : a
+        )
       )
-    )
+    }
   }
 
   const handleEditClick = (attendee: Attendee) => {
@@ -145,22 +145,46 @@ export function AttendeesList({
     if (!editingAttendee) return
     
     setSaving(true)
-    setTimeout(() => {
-      setAttendees((prev) =>
-        prev.map((a) =>
-          a.id === editingAttendee.id
-            ? {
-                ...a,
-                ...editForm,
-                name: `${editForm.personal_name} ${editForm.last_name}`.trim()
-              }
-            : a
+    try {
+      const { error } = await supabase
+        .from("attendees")
+        .update({
+          personal_name: editForm.personal_name,
+          middle_name: editForm.middle_name,
+          last_name: editForm.last_name,
+          email: editForm.email,
+          mobile_number: editForm.mobile_number,
+          date_of_birth: editForm.date_of_birth,
+          address: editForm.address,
+          company: editForm.company,
+          position: editForm.position,
+          company_address: editForm.company_address
+        })
+        .eq("id", editingAttendee.id)
+
+      if (!error) {
+        setAttendees((prev) =>
+          prev.map((a) =>
+            a.id === editingAttendee.id
+              ? {
+                  ...a,
+                  ...editForm,
+                  name: `${editForm.personal_name} ${editForm.last_name}`.trim()
+                }
+              : a
+          )
         )
-      )
-      setEditingAttendee(null)
+        setEditingAttendee(null)
+        alert("✅ Attendee updated successfully!")
+      } else {
+        alert("❌ Failed to update attendee")
+      }
+    } catch (error) {
+      console.error("Error updating attendee:", error)
+      alert("❌ Failed to update attendee")
+    } finally {
       setSaving(false)
-      alert("✅ Attendee updated successfully!")
-    }, 500)
+    }
   }
 
   // Quick Actions Functions
@@ -199,33 +223,76 @@ export function AttendeesList({
     }
 
     if (quickActionMode === "payment") {
+      // Mark as Fully Paid
+      const updates = selectedIds.map(id => 
+        supabase
+          .from("attendees")
+          .update({ payment_status: "Fully Paid" })
+          .eq("id", id)
+      )
+      
+      await Promise.all(updates)
+      
       setAttendees(prev =>
         prev.map(a =>
           selectedIds.includes(a.id) ? { ...a, payment_status: "Fully Paid" } : a
         )
       )
+      
       alert(`✅ Marked ${selectedIds.length} attendee(s) as Fully Paid`)
     } else if (quickActionMode === "attendance" && selectedDate) {
+      // Mark as Present for selected date
       const epochDate = new Date(selectedDate).getTime()
       
-      setAttendees(prev =>
-        prev.map(a => {
-          if (!selectedIds.includes(a.id)) return a
-          
-          const existing = a.attendance.find(att => att.date === epochDate)
-          let updatedAttendance = [...a.attendance]
-          
-          if (!existing) {
-            updatedAttendance.push({ date: epochDate, status: "Present" })
-          } else {
-            updatedAttendance = updatedAttendance.map(att =>
-              att.date === epochDate ? { ...att, status: "Present" } : att
-            )
-          }
-          
-          return { ...a, attendance: updatedAttendance }
-        })
-      )
+      const updates = selectedIds.map(async (id) => {
+        const attendee = attendees.find(a => a.id === id)
+        if (!attendee) return
+        
+        const existing = attendee.attendance.find(a => a.date === epochDate)
+        let updatedAttendance = [...attendee.attendance]
+        
+        if (!existing) {
+          updatedAttendance.push({ date: epochDate, status: "Present" })
+        } else {
+          updatedAttendance = updatedAttendance.map(a =>
+            a.date === epochDate ? { ...a, status: "Present" } : a
+          )
+        }
+        
+        return supabase
+          .from("attendees")
+          .update({ attendance: updatedAttendance })
+          .eq("id", id)
+      })
+      
+      await Promise.all(updates)
+      
+      // Refresh attendees
+      const { data } = await supabase
+        .from("attendees")
+        .select("*")
+        .eq("event_id", parseInt(eventId))
+      
+      if (data) {
+        setAttendees(
+          data.map((a: any) => ({
+            id: a.id,
+            name: `${a.personal_name ?? ""} ${a.last_name ?? ""}`.trim(),
+            email: a.email ?? "",
+            attendance: a.attendance || [],
+            personal_name: a.personal_name,
+            middle_name: a.middle_name,
+            last_name: a.last_name,
+            mobile_number: a.mobile_number,
+            date_of_birth: a.date_of_birth,
+            address: a.address,
+            company: a.company,
+            position: a.position,
+            company_address: a.company_address,
+            payment_status: a.payment_status || "Pending"
+          }))
+        )
+      }
       
       alert(`✅ Marked ${selectedIds.length} attendee(s) as Present`)
     }
@@ -390,7 +457,7 @@ export function AttendeesList({
                       />
                     </th>
                   )}
-                  <th className="text-center py-3 px-3 font-semibold bg-background">Actions</th>
+                   <th className="text-center py-3 px-3 font-semibold bg-background">Actions</th>
                   <th className={`text-left py-3 px-3 font-semibold bg-background ${quickActionMode ? '' : 'sticky left-0 z-20'}`}>
                     Attendee
                   </th>
