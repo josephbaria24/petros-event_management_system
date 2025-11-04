@@ -23,7 +23,9 @@ export default async function SubmissionPage(props: {
   params: Promise<{ reference_id: string }>
 }) {
   const { reference_id } = await props.params
-  const ref = reference_id?.trim?.() ?? ""
+  
+  // Decode the URL parameter to handle special characters
+  const ref = decodeURIComponent(reference_id?.trim?.() ?? "")
 
   if (!ref) {
     return (
@@ -35,14 +37,16 @@ export default async function SubmissionPage(props: {
     )
   }
 
+  // Use exact match instead of ilike for precise reference_id matching
   const { data: attendee, error: attendeeError } = await supabaseServer
     .from("attendees")
     .select("personal_name, last_name, email, reference_id, event_id")
-    .ilike("reference_id", ref)
+    .eq("reference_id", ref)
     .single<Attendee>()
 
   if (attendeeError || !attendee) {
     console.log("❌ Attendee error:", attendeeError)
+    console.log("🔍 Looking for reference_id:", ref)
     return (
       <main className="flex items-center justify-center min-h-screen" style={{ background: 'linear-gradient(to bottom right, #1e3a8a, #047857, #1e3a8a)' }}>
         <div className="rounded-2xl p-8" style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255, 255, 255, 0.2)' }}>
@@ -83,79 +87,78 @@ export default async function SubmissionPage(props: {
       <div className="w-full max-w-md">
         {/* Ticket Card */}
         <div id="ticket-card" className="rounded-3xl shadow-2xl overflow-hidden" style={{ backgroundColor: '#ffffff' }}>
-{/* Header Section */}
-<div
-  className="relative px-6 pt-6 pb-5 text-white"
-  style={{
-    background: "linear-gradient(90deg, #16a34a 0%, #2563eb 100%)",
-  }}
->
-  {/* CONFIRMED badge */}
-  <span
-    className="absolute top-4 right-4 text-xs font-semibold tracking-wide px-3 py-1 rounded-full"
-    style={{
-      backgroundColor: "#ffffff33", // semi-transparent white
-      color: "#ffffff",
-      letterSpacing: "0.05em",
-    }}
-  >
-    CONFIRMED
-  </span>
+          {/* Header Section */}
+          <div
+            className="relative px-6 pt-6 pb-5 text-white"
+            style={{
+              background: "linear-gradient(90deg, #16a34a 0%, #2563eb 100%)",
+            }}
+          >
+            {/* CONFIRMED badge */}
+            <span
+              className="absolute top-4 right-4 text-xs font-semibold tracking-wide px-3 py-1 rounded-full"
+              style={{
+                backgroundColor: "#ffffff33",
+                color: "#ffffff",
+                letterSpacing: "0.05em",
+              }}
+            >
+              CONFIRMED
+            </span>
 
-  {/* Ticket Label */}
-  <p
-    className="text-sm font-medium mb-2"
-    style={{
-      color: "#e5e7eb", // muted grayish white
-    }}
-  >
-    EVENT TICKET
-  </p>
+            {/* Ticket Label */}
+            <p
+              className="text-sm font-medium mb-2"
+              style={{
+                color: "#e5e7eb",
+              }}
+            >
+              EVENT TICKET
+            </p>
 
-  {/* Event Title */}
-  <h1
-    className="text-2xl font-bold leading-tight mb-2"
-    style={{
-      color: "#ffffff",
-    }}
-  >
-    {event.name}
-  </h1>
+            {/* Event Title */}
+            <h1
+              className="text-2xl font-bold leading-tight mb-2"
+              style={{
+                color: "#ffffff",
+              }}
+            >
+              {event.name}
+            </h1>
 
-  {/* Venue Row */}
-  <div className="flex items-center gap-2">
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="16"
-      height="16"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="#d1fae5"
-      strokeWidth="2"
-      className="flex-shrink-0"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-      />
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-      />
-    </svg>
-    <p
-      className="text-sm font-medium"
-      style={{
-        color: "#d1fae5",
-      }}
-    >
-      {event.venue}
-    </p>
-  </div>
-</div>
-
+            {/* Venue Row */}
+            <div className="flex items-center gap-2">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="#d1fae5"
+                strokeWidth="2"
+                className="flex-shrink-0"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+              </svg>
+              <p
+                className="text-sm font-medium"
+                style={{
+                  color: "#d1fae5",
+                }}
+              >
+                {event.venue}
+              </p>
+            </div>
+          </div>
 
           {/* QR Code Section */}
           <div className="p-8 flex justify-center" style={{ background: 'linear-gradient(to bottom, #f9fafb, #ffffff)' }}>
