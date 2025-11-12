@@ -241,7 +241,7 @@ export default function RegisterPage() {
       console.log('Upload path:', filePath)
 
       const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('certificates')
+        .from('Certificates')
         .upload(filePath, blob, {
           cacheControl: '3600',
           upsert: true,
@@ -256,7 +256,7 @@ export default function RegisterPage() {
       }
 
       const { data: { publicUrl } } = supabase.storage
-        .from('certificates')
+        .from('Certificates')
         .getPublicUrl(filePath)
 
       console.log('Public URL:', publicUrl)
@@ -471,7 +471,7 @@ export default function RegisterPage() {
 
   if (submitted) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#017C7C]/90 p-4">
+      <main className="flex min-h-screen items-center justify-center bg-blue-500 p-4">
         <Card className="w-full max-w-md">
           <CardContent className="pt-6">
             <div className="flex flex-col items-center space-y-6 text-center">
@@ -522,7 +522,12 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-emerald-500 p-4 sm:p-8">
+<main className="relative flex min-h-screen flex-col items-center justify-center p-4 sm:p-8">
+  <div className="absolute inset-0 bg-[url('/registration-bg.jpg')] bg-cover bg-center bg-no-repeat" />
+  <div className="absolute inset-0 bg-black/50" /> {/* dark overlay */}
+  <div className="relative z-10 flex flex-col items-center justify-center">
+   
+
       {showCropModal && imageToCrop && (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
           <Card className="w-full max-w-4xl max-h-[90vh] overflow-auto">
@@ -850,7 +855,9 @@ export default function RegisterPage() {
                 checked={dataPrivacyAgreed}
                 onCheckedChange={(checked) => setDataPrivacyAgreed(checked as boolean)}
                 disabled={submitting}
+                className="border-2 border-gray-600 data-[state=checked]:bg-gray-700 data-[state=checked]:border-gray-800"
               />
+
               <div className="space-y-1 leading-none">
                 <Label
                   htmlFor="data_privacy"
@@ -879,6 +886,7 @@ export default function RegisterPage() {
           </form>
         </CardContent>
       </Card>
+    </div>
     </main>
   )
 }
