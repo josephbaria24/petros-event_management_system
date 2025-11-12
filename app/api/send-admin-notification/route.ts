@@ -6,7 +6,7 @@ const transporter = nodemailer.createTransport({
   port: 465,
   secure: true,
   auth: {
-    user: "no-reply@waspi.ph",
+    user: "no-reply@petros-global.com",
     pass: "@Notsotrickypassword123",
   },
 })
@@ -157,8 +157,8 @@ export async function POST(request: Request) {
     `
 
     await transporter.sendMail({
-      from: '"Event Registration System" <no-reply@waspi.ph>',
-      to: "no-reply@waspi.ph",
+      from: '"Event Registration System" <no-reply@petros-global.com>',
+      to: "no-reply@petros-global.com",
       subject: `New Registration: ${fullName} - ${event_name}`,
       html: htmlContent,
     })

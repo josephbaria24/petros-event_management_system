@@ -224,7 +224,7 @@ export async function POST(req: Request) {
     console.log("Certificate PDF generated successfully");
 
     // Return the PDF as a downloadable file
-    return new NextResponse(certificatePDF, {
+    return new NextResponse(new Uint8Array(certificatePDF), {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="Certificate_${fullName.replace(/\s+/g, "_")}.pdf"`,

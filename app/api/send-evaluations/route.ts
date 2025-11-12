@@ -14,7 +14,7 @@ const transporter = nodemailer.createTransport({
   port: 465,
   secure: true,
   auth: {
-    user: "no-reply@waspi.ph",
+    user: "no-reply@petros-global.com",
     pass: "@Notsotrickypassword123",
   },
 })
@@ -107,15 +107,15 @@ export async function POST(req: Request) {
         const evalLink = `${baseUrl}/evaluation/${encodeURIComponent(attendee.reference_id)}`
 
         const mailOptions = {
-          from: `"WASPI" <no-reply@waspi.ph>`,
+          from: `"Petrosphere" <no-reply@petros-global.com>`,
           to: cleanEmail,
           subject: `Evaluation Form - ${event?.name}`,
           html: `
             <div style="font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 30px;">
               <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 10px; overflow: hidden;">
               <div style="background-color: #ffffff; text-align: center; padding: 20px; border: 3px solid #1e1b4b;border-radius: 10px;">
-              <img src="https://waspi.ph/wp-content/uploads/2024/09/cropped-WASPI-Logo-Header-2024-515x84.png" 
-                   alt="WASPI Logo" 
+              <img src="https://petrosphere.com.ph/wp-content/uploads/al_opt_content/IMAGE/petrosphere.com.ph/wp-content/uploads/2022/08/cropped-Petrosphere-Horizontal-Logo-white-with-clear-background-279x50.png.bv.webp?bv_host=petrosphere.com.ph" 
+                   alt="Petros Logo" 
                    style="height: 80px;" />
             </div>
                 <div style="padding: 30px; color: #333;">
@@ -134,7 +134,7 @@ export async function POST(req: Request) {
                     </a>
                   </div>
                   <p style="margin-top: 30px; color: #666; font-size: 14px;">
-                  If you have any questions, please don't hesitate to contact info@waspi.ph.
+                  If you have any questions, please don't hesitate to contact info@petros-global.com
                 </p>
                 </div>
               </div>

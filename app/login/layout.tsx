@@ -5,7 +5,7 @@ export default function LoginLayout({ children }: { children: ReactNode }) {
     <div
       className="min-h-screen flex items-center justify-center"
       style={{
-        background: "linear-gradient(135deg, #1e3a8a 0%, #16a34a 100%)", // Blue → Green
+        background: "linear-gradient(135deg, #00044a 40%, #fbe706ff 100%)", // Blue → Green
       }}
     >
       {children}

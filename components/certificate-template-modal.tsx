@@ -225,7 +225,7 @@ export default function CertificateTemplateModal({ eventId, open, onClose }: Cer
       const filePath = `certificate-templates/${fileName}`
 
       const { data, error } = await supabase.storage
-        .from('certificates')
+        .from('Certificates')
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: true
@@ -234,7 +234,7 @@ export default function CertificateTemplateModal({ eventId, open, onClose }: Cer
       if (error) throw error
 
       const { data: urlData } = supabase.storage
-        .from('certificates')
+        .from('Certificates')
         .getPublicUrl(filePath)
 
       return urlData.publicUrl

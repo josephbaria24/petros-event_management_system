@@ -16,7 +16,7 @@ export async function POST(req: Request) {
       port: 465,
       secure: true,
       auth: {
-        user: "no-reply@waspi.ph",
+        user: "no-reply@petros-global.com",
         pass: "@Notsotrickypassword123",
       },
     })
@@ -39,14 +39,14 @@ export async function POST(req: Request) {
           </div>
         </div>
         <p style="margin-top: 30px; color: #666; font-size: 14px;">
-        If you have any questions, please don't hesitate to contact info@waspi.ph.
+        If you have any questions, please don't hesitate to contact info@petros-global.com
       </p>
       </div>
     `
 
     // 4️⃣ Send Email
     await transporter.sendMail({
-      from: `"WASPI Registration" <no-reply@waspi.ph>`,
+      from: `"WASPI Registration" <no-reply@petros-global.com>`,
       to: email,
       subject: `Your Registration for ${event_name}`,
       html,
