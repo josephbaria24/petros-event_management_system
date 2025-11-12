@@ -52,11 +52,11 @@ export function Navigation({ currentEventId, onQRScanClick }: NavigationProps) {
           {/* Left: Logo */}
           <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-transparent">
-              <img src="/waspi-logo.png" alt="Logo" className="h-10 w-10 object-contain" />
+              <img src="/logo.png" alt="Logo" className="h-10 w-10 object-contain" />
             </div>
 
             <div className="hidden sm:flex flex-col leading-tight">
-              <span className="font-bold text-foreground text-lg">WASPI</span>
+              <span className="font-bold text-foreground text-lg">Petrosphere</span>
               <span className="text-sm text-muted-foreground">Event Management System</span>
             </div>
           </div>

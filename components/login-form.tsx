@@ -90,13 +90,13 @@ export function LoginForm({
           <CardHeader className="text-center pb-2">
             <div className="flex justify-center mb-4">
               <img
-                src="https://waspi.ph/wp-content/uploads/2024/09/cropped-WASPI-Logo-Header-2024-515x84.png"
-                alt="WASPI Logo"
+                src="https://petrosphere.com.ph/wp-content/uploads/al_opt_content/IMAGE/petrosphere.com.ph/wp-content/uploads/2022/08/cropped-Petrosphere-Horizontal-Logo-white-with-clear-background-279x50.png.bv.webp?bv_host=petrosphere.com.ph"
+                alt="Petrosphere Logo"
                 className="w-80 h-auto object-contain"
               />
             </div>
             <CardTitle className="text-2xl font-bold text-gray-900">
-              WASPI Event Management System
+              Petrosphere Event Management System
             </CardTitle>
             <CardDescription className="text-gray-500 mt-1">
               Login to your account to manage events and attendees
@@ -168,7 +168,7 @@ export function LoginForm({
         </Card>
 
         <p className="text-center text-gray-600 mt-6 text-sm">
-          © {new Date().getFullYear()} WASPI Event Management System
+          © {new Date().getFullYear()} Petrosphere Event Management System
         </p>
       </div>
     </main>
