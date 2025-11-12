@@ -46,7 +46,7 @@ export async function POST(req: Request) {
 
     // 4️⃣ Send Email
     await transporter.sendMail({
-      from: `"WASPI Registration" <no-reply@petros-global.com>`,
+      from: `"Petrosphere Webinar Registration" <no-reply@petros-global.com>`,
       to: email,
       subject: `Your Registration for ${event_name}`,
       html,
