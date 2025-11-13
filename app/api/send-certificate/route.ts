@@ -53,7 +53,7 @@ async function generateCertificatePDF(
   templateType: "participation" | "awardee" | "attendance" = "participation"
 ): Promise<Buffer> {
   try {
-    // Get custom template from database
+    // Get custom template and event details from database
     console.log(`Fetching template for event ID: ${eventId}`);
     
     const { data: template, error: templateError } = await supabase
@@ -62,6 +62,15 @@ async function generateCertificatePDF(
       .eq("event_id", eventId)
       .eq("template_type", templateType)
       .maybeSingle();
+
+    // Get event topics
+    const { data: eventData } = await supabase
+      .from("events")
+      .select("topics")
+      .eq("id", eventId)
+      .single();
+
+    const topics = eventData?.topics || [];
 
     if (templateError) {
       console.error("Error fetching template:", templateError);
@@ -166,6 +175,18 @@ async function generateCertificatePDF(
         .replace(/\{\{event_name\}\}/g, eventName)
         .replace(/\{\{event_date\}\}/g, eventDate)
         .replace(/\{\{event_venue\}\}/g, eventVenue);
+
+      // Replace topic placeholders
+      if (topics && Array.isArray(topics)) {
+        const allTopics = topics.map((t: any) => t.topic || t).filter(Boolean);
+        text = text
+          .replace(/\{\{covered_topics\}\}/g, allTopics.join(", "))
+          .replace(/\{\{topic_1\}\}/g, allTopics[0] || "")
+          .replace(/\{\{topic_2\}\}/g, allTopics[1] || "")
+          .replace(/\{\{topic_3\}\}/g, allTopics[2] || "")
+          .replace(/\{\{topic_4\}\}/g, allTopics[3] || "")
+          .replace(/\{\{topic_5\}\}/g, allTopics[4] || "");
+      }
 
       const font = field.fontWeight === "bold" ? helveticaBold : helvetica;
       const color = hexToRgb(field.color);
