@@ -392,7 +392,7 @@ export default function SendDirectCertificateModal({
                       className={`flex items-start space-x-3 p-3 rounded-lg border cursor-pointer transition-colors ${
                         selectedIds.has(attendee.id)
                           ? "border-primary bg-primary/5"
-                          : "hover:bg-accent"
+                          : "hover:bg-secondary"
                       }`}
                       onClick={() => !sending && toggleSelection(attendee.id)}
                     >
@@ -477,7 +477,7 @@ export default function SendDirectCertificateModal({
                   key={idx} 
                   className={`flex items-start gap-2 text-sm p-2 rounded ${
                     result.status === "success" 
-                      ? "bg-green-50 border-l-2 border-green-500" 
+                      ? "bg-card border-l-2 border-green-500" 
                       : "bg-red-50 border-l-2 border-red-500"
                   }`}
                 >

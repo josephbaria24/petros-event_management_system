@@ -1,4 +1,5 @@
 //app/api/generate-certificate/route.ts
+//app/api/generate-certificate/route.ts
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
@@ -19,6 +20,18 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
         b: parseInt(result[3], 16) / 255,
       }
     : { r: 0, g: 0, b: 0 };
+}
+
+function capitalizeFirstLetter(str: string): string {
+  if (!str) return str;
+  return str
+    .trim()
+    .split(' ')
+    .map(word => {
+      if (!word) return word;
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
+    .join(' ');
 }
 
 function formatEventDate(startDate: string, endDate: string): string {
@@ -106,7 +119,7 @@ async function generateCertificatePDF(
             label: "Attendee Name",
             value: "{{attendee_name}}",
             x: 421,
-            y: 335,
+            y: 260,
             fontSize: 36,
             fontWeight: "bold",
             color: "#2C3E50",
@@ -208,7 +221,10 @@ export async function POST(req: Request) {
     }
 
     const event = attendee.events;
-    const fullName = `${attendee.personal_name} ${attendee.last_name}`;
+    // Capitalize first letter of first name and last name
+    const firstName = capitalizeFirstLetter(attendee.personal_name);
+    const lastName = capitalizeFirstLetter(attendee.last_name);
+    const fullName = `${firstName} ${lastName}`;
     const eventDate = formatEventDate(event.start_date, event.end_date);
 
     console.log(`Generating certificate for: ${fullName}, Event ID: ${event.id}`);

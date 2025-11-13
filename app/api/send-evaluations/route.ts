@@ -111,7 +111,7 @@ export async function POST(req: Request) {
           to: cleanEmail,
           subject: `Evaluation Form - ${event?.name}`,
           html: `
-            <div style="font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 30px;">
+            <div style="font-family: Arial, sans-serif; background-color: #ffffff; padding: 30px;">
               <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 10px; overflow: hidden;">
               <div style="background-color: #0e026aff; text-align: center; padding: 20px; border: 3px solid #1e1b4b;border-radius: 10px;">
                 <img src="https://petrosphere.com.ph/wp-content/uploads/al_opt_content/IMAGE/petrosphere.com.ph/wp-content/uploads/2022/08/cropped-Petrosphere-Horizontal-Logo-white-with-clear-background-279x50.png.bv.webp?bv_host=petrosphere.com.ph" 

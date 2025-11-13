@@ -1,4 +1,4 @@
-//app/api/send-certificate/route.ts
+//app\api\send-certificate\route.ts
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import { createClient } from "@supabase/supabase-js";
@@ -30,6 +30,18 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
         b: parseInt(result[3], 16) / 255,
       }
     : { r: 0, g: 0, b: 0 };
+}
+
+function capitalizeFirstLetter(str: string): string {
+  if (!str) return str;
+  return str
+    .trim()
+    .split(' ')
+    .map(word => {
+      if (!word) return word;
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
+    .join(' ');
 }
 
 async function generateCertificatePDF(
@@ -66,15 +78,14 @@ async function generateCertificatePDF(
     }
 
     const pdfDoc = await PDFDocument.create();
-    const page = pdfDoc.addPage([792, 612]); // Letter/Short bond paper landscape (11" x 8.5")
+    const page = pdfDoc.addPage([842, 595]);
 
     // Load template image
-let templateImageBytes: ArrayBuffer | Buffer;
+    let templateImageBytes: ArrayBuffer | Buffer;
     
     if (template?.image_url) {
       console.log("Fetching custom template from:", template.image_url);
       
-      // Fetch the image from URL
       const response = await fetch(template.image_url);
       if (!response.ok) {
         console.error(`Failed to fetch template: ${response.status} ${response.statusText}`);
@@ -85,7 +96,6 @@ let templateImageBytes: ArrayBuffer | Buffer;
     } else {
       console.log("Using default template from public folder");
       
-      // Fallback to default template
       const templatePath = path.join(process.cwd(), "public", "certificate-template.png");
       templateImageBytes = await fs.readFile(templatePath);
     }
@@ -94,8 +104,8 @@ let templateImageBytes: ArrayBuffer | Buffer;
     page.drawImage(templateImage, {
       x: 0,
       y: 0,
-      width: 792,
-      height: 612,
+      width: 842,
+      height: 595,
     });
 
     // Use custom fields if available, otherwise use defaults
@@ -106,8 +116,8 @@ let templateImageBytes: ArrayBuffer | Buffer;
             id: "name",
             label: "Attendee Name",
             value: "{{attendee_name}}",
-            x: 396,
-            y: 335,
+            x: 421,
+            y: 260, // Changed from 335 to match other routes
             fontSize: 36,
             fontWeight: "bold",
             color: "#2C3E50",
@@ -117,7 +127,7 @@ let templateImageBytes: ArrayBuffer | Buffer;
             id: "event",
             label: "Event Name",
             value: "for having attended the {{event_name}}",
-            x: 396,
+            x: 421,
             y: 275,
             fontSize: 14,
             fontWeight: "normal",
@@ -128,7 +138,7 @@ let templateImageBytes: ArrayBuffer | Buffer;
             id: "date",
             label: "Event Date",
             value: "conducted on {{event_date}} at {{event_venue}}",
-            x: 396,
+            x: 421,
             y: 250,
             fontSize: 14,
             fontWeight: "normal",
@@ -169,8 +179,7 @@ let templateImageBytes: ArrayBuffer | Buffer;
       }
 
       // Convert Y coordinate from canvas (top=0) to PDF (bottom=0)
-      // Canvas Y is measured from top, PDF Y is measured from bottom
-      const pdfY = 612 - field.y;
+      const pdfY = 595 - field.y;
 
       page.drawText(text, {
         x: x,
@@ -195,15 +204,6 @@ function isValidEmail(email: string): boolean {
   if (email.includes(" ")) return false;
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
-}
-
-// Capitalize first letter of each word
-function capitalizeWords(str: string): string {
-  return str
-    .toLowerCase()
-    .split(' ')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
 }
 
 function formatEventDate(startDate: string, endDate: string): string {
@@ -271,7 +271,10 @@ export async function POST(req: Request) {
     }
 
     const event = attendee.events;
-    const fullName = `${attendee.personal_name} ${attendee.last_name}`;
+    // Capitalize first letter of first name and last name
+    const firstName = capitalizeFirstLetter(attendee.personal_name);
+    const lastName = capitalizeFirstLetter(attendee.last_name);
+    const fullName = `${firstName} ${lastName}`;
     const eventDate = formatEventDate(event.start_date, event.end_date);
 
     console.log(`Generating certificate for: ${fullName}, Event ID: ${event.id}`);
@@ -299,7 +302,7 @@ export async function POST(req: Request) {
                style="height: 60px;" />
         </div>
             <div style="padding: 30px; color: #333;">
-              <h2>Congratulations, ${attendee.personal_name} ${attendee.last_name}!</h2>
+              <h2>Congratulations, ${firstName} ${lastName}!</h2>
               <p>
                 Thank you for completing the evaluation for <strong>${event.name}</strong>.
               </p>

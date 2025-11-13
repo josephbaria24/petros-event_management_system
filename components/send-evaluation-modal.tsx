@@ -100,6 +100,15 @@ export default function SendEvaluationsModal({
     )
   }
 
+  // Handle row click - toggle selection
+  const handleRowClick = (id: number, e: React.MouseEvent) => {
+    // Prevent toggle if clicking on the checkbox itself
+    const target = e.target as HTMLInputElement
+    if (target.type === 'checkbox') return
+    
+    toggleSelect(id)
+  }
+
   // Email sending
   const sendEmails = async () => {
     if (!selectedIds.length) {
@@ -159,10 +168,10 @@ export default function SendEvaluationsModal({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-6xl max-h-[80vh] flex flex-col rounded-xl bg-white shadow-lg">
-        <DialogHeader className="border-b pb-2 bg-white">
+      <DialogContent className="max-w-6xl max-h-[80vh] flex flex-col rounded-xl bg-card shadow-lg">
+        <DialogHeader className=" pb-2 ">
           <div className="flex justify-between items-center">
-            <DialogTitle className="text-lg font-bold text-[#1e1b4b]">
+            <DialogTitle className="text-lg font-bold ">
               Send Evaluations
             </DialogTitle>
 
@@ -172,8 +181,8 @@ export default function SendEvaluationsModal({
               onClick={() => setShowOnlyAttendees(!showOnlyAttendees)}
               className={`flex items-center gap-2 ${
                 showOnlyAttendees
-                  ? "bg-[#1e1b4b] text-white hover:bg-[#2c2970]"
-                  : "text-[#1e1b4b] border-[#1e1b4b]"
+                  ? "bg-background "
+                  : ""
               }`}
             >
               <Users className="h-4 w-4" />
@@ -183,10 +192,10 @@ export default function SendEvaluationsModal({
         </DialogHeader>
 
         {loading ? (
-          <p className="text-center py-6 text-gray-600">Loading attendees...</p>
+          <p className="text-center py-6 text-gray-500">Loading attendees...</p>
         ) : result ? (
           // ✅ Results View
-          <div className="flex flex-col gap-4 overflow-auto bg-white">
+          <div className="flex flex-col gap-4 overflow-auto bg-card">
             <div className="space-y-3">
               {result.successful.length > 0 && (
                 <Alert className="border-green-200 bg-green-50">
@@ -234,7 +243,7 @@ export default function SendEvaluationsModal({
           </div>
         ) : (
           // ✅ Main Table View
-          <div className="flex flex-col h-full min-h-0 bg-white">
+          <div className="flex flex-col h-full min-h-0 bg-card">
             <div className="mb-4">
               <Input
                 type="text"
@@ -246,7 +255,7 @@ export default function SendEvaluationsModal({
               />
             </div>
 
-            <div className="flex items-center gap-2 border-b pb-3 mb-2 border-gray-200">
+            <div className="flex items-center gap-2  pb-3 mb-2">
               <input
                 type="checkbox"
                 checked={
@@ -257,15 +266,15 @@ export default function SendEvaluationsModal({
                 disabled={sending}
                 className="accent-[#1e1b4b]"
               />
-              <span className="font-medium text-[#1e1b4b]">Select All</span>
-              <span className="text-sm text-gray-500 ml-auto">
+              <span className="font-medium ">Select All</span>
+              <span className="text-sm ml-auto">
                 {selectedIds.length} selected
               </span>
             </div>
 
             {/* Table */}
-            <div className="flex-1 overflow-y-auto border border-gray-200 rounded-lg min-h-0">
-              <div className="sticky top-0 bg-[#f9fafb] border-b border-gray-200 font-semibold text-sm text-[#1e1b4b]">
+            <div className="flex-1 overflow-y-auto border border-gray-400 rounded-lg min-h-0">
+              <div className="sticky top-0 bg-card border-b border-gray-200 font-semibold text-sm ">
                 <div className="grid grid-cols-12 gap-4 px-4 py-3">
                   <div className="col-span-1">#</div>
                   <div className="col-span-3">Name</div>
@@ -285,7 +294,12 @@ export default function SendEvaluationsModal({
                   {filteredAttendees.map((a, i) => (
                     <div
                       key={a.id}
-                      className="grid grid-cols-12 gap-4 px-4 py-3 hover:bg-gray-50 items-center transition"
+                      onClick={(e) => !sending && handleRowClick(a.id, e)}
+                      className={`grid grid-cols-12 gap-4 px-4 py-3 items-center transition cursor-pointer ${
+                        selectedIds.includes(a.id)
+                          ? 'bg-primary/10 '
+                          : 'hover:bg-secondary'
+                      } ${sending ? 'cursor-not-allowed opacity-50' : ''}`}
                     >
                       <div className="col-span-1 flex items-center gap-2">
                         <input
@@ -293,28 +307,28 @@ export default function SendEvaluationsModal({
                           checked={selectedIds.includes(a.id)}
                           onChange={() => toggleSelect(a.id)}
                           disabled={sending}
-                          className="accent-[#1e1b4b]"
+                          className="pointer-events-none accent-primary"
                         />
                         <span className="text-sm text-gray-500">{i + 1}</span>
                       </div>
 
-                      <div className="col-span-3 font-medium text-[#1e1b4b]">
+                      <div className="col-span-3 font-medium ">
                         {a.last_name}, {a.personal_name}
                       </div>
 
-                      <div className="col-span-3 text-sm text-gray-700 truncate">
+                      <div className="col-span-3 text-sm  truncate">
                         {a.email || <span className="text-red-500 italic">No email</span>}
                       </div>
 
                       <div className="col-span-2 text-center">
                         {a.roles && a.roles.length > 0 ? (
-                          <span className="text-xs text-gray-700">{a.roles.join(", ")}</span>
+                          <span className="text-xs ">{a.roles.join(", ")}</span>
                         ) : (
                           <span className="text-gray-400 text-xs italic">—</span>
                         )}
                       </div>
 
-                      <div className="col-span-1 text-center text-sm text-gray-700">
+                      <div className="col-span-1 text-center text-sm ">
                         {countDaysPresent(a.attendance)}
                       </div>
 
@@ -334,7 +348,7 @@ export default function SendEvaluationsModal({
               <Button
                 onClick={sendEmails}
                 disabled={sending}
-                className="bg-[#1e1b4b] text-white hover:bg-[#2c2970]"
+                className="bg-primary text-white hover:bg-[#2c2970]"
               >
                 {sending ? (
                   <>
