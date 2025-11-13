@@ -24,7 +24,7 @@ export function EventCard({ event, onSelect }: { event: EventWithStats; onSelect
         <div className="space-y-3">
           {/* Header */}
           <div>
-            <div className="inline-block rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary mb-1.5">
+            <div className="inline-block rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-blue-500 mb-1.5">
               {event.type}
             </div>
             <h3 className="text-base font-bold text-foreground line-clamp-2">{event.name}</h3>

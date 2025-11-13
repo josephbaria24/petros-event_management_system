@@ -533,7 +533,7 @@ export function AttendeesList({ eventId, scheduleDates }: { eventId: string; sch
         return "bg-yellow-100 text-yellow-700 border-yellow-300"
       case "Pending":
       default:
-        return "bg-gray-100 text-gray-700 border-gray-300"
+        return "bg-gray-100 text-gray-500 border-gray-300"
     }
   }, [isPaymentExempt])
 
@@ -795,8 +795,8 @@ export function AttendeesList({ eventId, scheduleDates }: { eventId: string; sch
                   </th>
                   <th className="text-center py-3 px-3 font-semibold bg-background">Roles</th>
                   <th className="text-center py-3 px-3 font-semibold bg-background">Payment Status</th>
-                  {scheduleDates.map((d) => (
-                    <th key={d.date} className="text-left py-3 px-3 font-semibold bg-background whitespace-nowrap">
+                  {scheduleDates.map((d, index) => (
+                    <th key={`schedule-${d.date || index}`} className="text-left py-3 px-3 font-semibold bg-background whitespace-nowrap">
                       {new Date(d.date).toLocaleDateString(undefined, {
                         weekday: "short",
                         month: "short",
@@ -933,8 +933,8 @@ export function AttendeesList({ eventId, scheduleDates }: { eventId: string; sch
                         )}
                       </td>
                       
-                      {scheduleDates.map((d) => (
-                        <td key={d.date} className="px-3 py-3">
+                      {scheduleDates.map((d, index) => (
+                        <td key={`attendance-${attendee.id}-${d.date || index}`} className="px-3 py-3">
                           <Button
                             variant="ghost"
                             onClick={() => toggleAttendance(attendee.id, d.date)}

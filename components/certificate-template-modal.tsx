@@ -1,4 +1,3 @@
-//components/certificate-template-modal.tsx
 "use client"
 
 import { useState, useRef, useEffect } from "react"
@@ -25,6 +24,12 @@ interface TextField {
   align: "left" | "center" | "right"
 }
 
+interface PlaceholderOption {
+  value: string
+  label: string
+  description: string
+}
+
 interface CertificateTemplateModalProps {
   eventId: number
   open: boolean
@@ -32,6 +37,19 @@ interface CertificateTemplateModalProps {
 }
 
 type TemplateType = "participation" | "awardee" | "attendance"
+
+const PLACEHOLDER_OPTIONS: PlaceholderOption[] = [
+  { value: "{{attendee_name}}", label: "Attendee Name", description: "Full name of the participant" },
+  { value: "{{event_name}}", label: "Event Name", description: "Name of the event" },
+  { value: "{{event_date}}", label: "Event Date", description: "Date range of the event" },
+  { value: "{{event_venue}}", label: "Event Venue", description: "Location of the event" },
+  { value: "{{covered_topics}}", label: "All Covered Topics", description: "All topics as a comma-separated list" },
+  { value: "{{topic_1}}", label: "Topic #1", description: "First topic from the list" },
+  { value: "{{topic_2}}", label: "Topic #2", description: "Second topic from the list" },
+  { value: "{{topic_3}}", label: "Topic #3", description: "Third topic from the list" },
+  { value: "{{topic_4}}", label: "Topic #4", description: "Fourth topic from the list" },
+  { value: "{{topic_5}}", label: "Topic #5", description: "Fifth topic from the list" }
+]
 
 const TEMPLATE_TYPES: { value: TemplateType; label: string; icon: any; description: string }[] = [
   { 
@@ -87,6 +105,17 @@ const DEFAULT_FIELDS: Record<TemplateType, TextField[]> = {
       fontSize: 14,
       fontWeight: "normal",
       color: "#34495E",
+      align: "center"
+    },
+    {
+      id: "topics",
+      label: "Covered Topics",
+      value: "{{covered_topics}}",
+      x: 421,
+      y: 400,
+      fontSize: 12,
+      fontWeight: "normal",
+      color: "#7F8C8D",
       align: "center"
     }
   ],
@@ -189,6 +218,9 @@ export default function CertificateTemplateModal({ eventId, open, onClose }: Cer
   const [selectedField, setSelectedField] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
+  const [showPlaceholderMenu, setShowPlaceholderMenu] = useState(false)
+  const [editingField, setEditingField] = useState<string | null>(null)
+  const [editingValue, setEditingValue] = useState("")
 
   // Load all templates from database
   useEffect(() => {
@@ -288,11 +320,26 @@ export default function CertificateTemplateModal({ eventId, open, onClose }: Cer
 
         let displayText = field.value
         if (previewMode) {
+          // Get topics from database or use sample data
+          const sampleTopics = [
+            "Introduction to AI",
+            "Machine Learning Basics",
+            "Data Science Fundamentals",
+            "Neural Networks Overview",
+            "Deep Learning Applications"
+          ]
+          
           displayText = displayText
             .replace("{{attendee_name}}", "Juan Dela Cruz")
             .replace("{{event_name}}", "Sample Conference 2024")
             .replace("{{event_date}}", "October 16-18, 2024")
             .replace("{{event_venue}}", "Manila, Philippines")
+            .replace("{{covered_topics}}", sampleTopics.join(", "))
+            .replace("{{topic_1}}", sampleTopics[0] || "")
+            .replace("{{topic_2}}", sampleTopics[1] || "")
+            .replace("{{topic_3}}", sampleTopics[2] || "")
+            .replace("{{topic_4}}", sampleTopics[3] || "")
+            .replace("{{topic_5}}", sampleTopics[4] || "")
         }
 
         ctx.fillText(displayText, x, field.y)
@@ -364,6 +411,48 @@ export default function CertificateTemplateModal({ eventId, open, onClose }: Cer
     setSelectedField(null)
   }
 
+  const handleCanvasDoubleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (previewMode) return
+
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const rect = canvas.getBoundingClientRect()
+    const scaleX = canvas.width / rect.width
+    const scaleY = canvas.height / rect.height
+    const x = (e.clientX - rect.left) * scaleX
+    const y = (e.clientY - rect.top) * scaleY
+
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+
+    for (const field of textFields[currentTemplateType]) {
+      ctx.font = `${field.fontWeight === "bold" ? "bold " : ""}${field.fontSize}px Arial`
+      const metrics = ctx.measureText(field.value)
+      const textWidth = metrics.width
+      const textHeight = field.fontSize
+
+      let boxX = field.x
+      if (field.align === "center") {
+        boxX = field.x - textWidth / 2
+      } else if (field.align === "right") {
+        boxX = field.x - textWidth
+      }
+
+      if (
+        x >= boxX - 5 &&
+        x <= boxX + textWidth + 5 &&
+        y >= field.y - textHeight &&
+        y <= field.y + 5
+      ) {
+        setEditingField(field.id)
+        setEditingValue(field.value)
+        setSelectedField(field.id)
+        return
+      }
+    }
+  }
+
   const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isDragging || !selectedField || previewMode) return
 
@@ -423,6 +512,19 @@ export default function CertificateTemplateModal({ eventId, open, onClose }: Cer
     if (selectedField === id) {
       setSelectedField(null)
     }
+  }
+
+  const insertPlaceholder = (placeholder: string) => {
+    if (!selectedField) return
+    setTextFields((prev) => ({
+      ...prev,
+      [currentTemplateType]: prev[currentTemplateType].map((field) =>
+        field.id === selectedField 
+          ? { ...field, value: field.value + (field.value ? " " : "") + placeholder }
+          : field
+      )
+    }))
+    setShowPlaceholderMenu(false)
   }
 
   const handleSave = async () => {
@@ -602,17 +704,60 @@ export default function CertificateTemplateModal({ eventId, open, onClose }: Cer
               </div>
             </div>
 
-            <div className="border rounded-lg overflow-hidden bg-gray-50">
+            <div className="border rounded-lg overflow-hidden bg-gray-50 relative">
               {templateImage[currentTemplateType] ? (
-                <canvas
-                  ref={canvasRef}
-                  className="w-full cursor-crosshair"
-                  onClick={handleCanvasClick}
-                  onMouseDown={() => setIsDragging(true)}
-                  onMouseUp={() => setIsDragging(false)}
-                  onMouseMove={handleCanvasMouseMove}
-                  onMouseLeave={() => setIsDragging(false)}
-                />
+                <>
+                  <canvas
+                    ref={canvasRef}
+                    className="w-full cursor-crosshair"
+                    onClick={handleCanvasClick}
+                    onDoubleClick={handleCanvasDoubleClick}
+                    onMouseDown={() => setIsDragging(true)}
+                    onMouseUp={() => setIsDragging(false)}
+                    onMouseMove={handleCanvasMouseMove}
+                    onMouseLeave={() => setIsDragging(false)}
+                  />
+                  {editingField && (
+                    <div className="absolute top-4 left-1/2 transform -translate-x-1/2 w-96 bg-white border-2 border-primary rounded-lg shadow-lg p-4 z-10">
+                      <Label className="mb-2 block">Edit Text</Label>
+                      <Input
+                        value={editingValue}
+                        onChange={(e) => setEditingValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            updateField({ value: editingValue })
+                            setEditingField(null)
+                          } else if (e.key === 'Escape') {
+                            setEditingField(null)
+                          }
+                        }}
+                        autoFocus
+                        className="mb-2"
+                      />
+                      <div className="flex gap-2 justify-end">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setEditingField(null)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            updateField({ value: editingValue })
+                            setEditingField(null)
+                          }}
+                        >
+                          Save
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Press Enter to save, Escape to cancel
+                      </p>
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className="flex items-center justify-center h-64 text-muted-foreground">
                   <div className="text-center">
@@ -657,8 +802,8 @@ export default function CertificateTemplateModal({ eventId, open, onClose }: Cer
                       key={field.id}
                       className={`p-3 border rounded-lg cursor-pointer transition-colors ${
                         selectedField === field.id
-                          ? "border-blue-500 bg-blue-50"
-                          : "hover:bg-gray-50"
+                          ? "border-blue-500 bg-card"
+                          : "hover:bg-secondary"
                       }`}
                       onClick={() => setSelectedField(field.id)}
                     >
@@ -694,21 +839,52 @@ export default function CertificateTemplateModal({ eventId, open, onClose }: Cer
                       <Input
                         value={currentField.label}
                         onChange={(e) => updateField({ label: e.target.value })}
+                        placeholder="e.g., Attendee Name, Event Title"
                       />
+                      <p className="text-xs text-muted-foreground mt-1">
+                         This is just a label for your reference
+                      </p>
                     </div>
 
                     <div>
                       <Label>Text / Placeholder</Label>
-                      <Input
-                        value={currentField.value}
-                        onChange={(e) => updateField({ value: e.target.value })}
-                        placeholder="Use {{attendee_name}}, {{event_name}}, etc."
-                      />
+                      <div className="space-y-2">
+                        <Input
+                          value={currentField.value}
+                          onChange={(e) => updateField({ value: e.target.value })}
+                          placeholder="Enter text or add placeholders below"
+                        />
+                        <div className="relative">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full justify-start"
+                            onClick={() => setShowPlaceholderMenu(!showPlaceholderMenu)}
+                            type="button"
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Insert Placeholder
+                          </Button>
+                          {showPlaceholderMenu && (
+                            <div className="absolute z-10 w-full mt-1 bg-card border rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                              {PLACEHOLDER_OPTIONS.map((option) => (
+                                <button
+                                  key={option.value}
+                                  className="w-full px-3 py-2 text-left hover:bg-secondary transition-colors border-b last:border-b-0"
+                                  onClick={() => insertPlaceholder(option.value)}
+                                  type="button"
+                                >
+                                  <div className="font-medium text-sm">{option.label}</div>
+                                  <div className="text-xs text-muted-foreground">{option.description}</div>
+                                  <div className="text-xs text-blue-500 mt-1 font-mono">{option.value}</div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                       <p className="text-xs text-muted-foreground mt-1">
-                        Available: {"{"}{"{"} attendee_name {"}"}{"}"},
-                        {"{"}{"{"} event_name {"}"}{"}"},
-                        {"{"}{"{"} event_date {"}"}{"}"},
-                        {"{"}{"{"} event_venue {"}"}{"}"} 
+                         Placeholders will be replaced with actual data when generating certificates
                       </p>
                     </div>
 
@@ -804,7 +980,8 @@ export default function CertificateTemplateModal({ eventId, open, onClose }: Cer
                   </>
                 ) : (
                   <div className="text-center text-muted-foreground py-8">
-                    Select a field to edit
+                    <p className="mb-2">Select a field from the left to edit</p>
+                    <p className="text-xs">or click on a text field in the certificate preview</p>
                   </div>
                 )}
               </TabsContent>

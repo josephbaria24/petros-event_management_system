@@ -1,3 +1,4 @@
+//components\event-modal.tsx
 "use client"
 
 import React, { useState } from "react"
@@ -27,6 +28,33 @@ type EventType = typeof EVENT_TYPES[number]
 
 interface EventFormData extends Omit<Event, "id" | "attendees" | "createdAt"> {}
 
+
+
+
+function extractMeetingId(url: string): string | null {
+  if (!url) return null;
+
+  // 1️⃣ New short format: https://teams.microsoft.com/meet/<ID>?p=<passcode>
+  const shortMeet = url.match(/teams\.microsoft\.com\/meet\/([^/?]+)/);
+  if (shortMeet) return shortMeet[1]; // returns 4795871814326
+
+  // 2️⃣ meetup-join format
+  const meetupMatch = url.match(/meetup-join\/([^\/?]+)/);
+  if (meetupMatch) return meetupMatch[1];
+
+  // 3️⃣ /meeting/ format
+  const meetingMatch = url.match(/\/meeting\/([^\/]+)/);
+  if (meetingMatch) return meetingMatch[1];
+
+  // 4️⃣ Webinar/virtual event format
+  const eventMatch = url.match(/events\.teams\.microsoft\.com\/event\/([A-Za-z0-9\-]+)@/);
+  if (eventMatch) return eventMatch[1];
+
+  return null;
+}
+
+
+
 export function EventModal({
   isOpen,
   onClose,
@@ -41,9 +69,12 @@ export function EventModal({
     type: "Conference",
     price: 0,
     venue: "",
+    description: "",
+    teams_join_url: "",
+    teams_meeting_id: "",
     schedule: [
       {
-        date: "2025-11-06", // or ""
+        date: "",
         timeIn: "09:00",
         timeOut: "17:00",
         coveredTopics: []
@@ -51,28 +82,69 @@ export function EventModal({
     ]
   })
 
+
   const [topicInput, setTopicInput] = useState("")
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (formData.name && formData.venue && formData.schedule[0].coveredTopics.length > 0) {
-      onSubmit(formData)
-      setFormData({
-        name: "",
-        type: "Conference",
-        price: 0,
-        venue: "",
-        schedule: [
-          {
-            date: "2025-11-06", // or ""
-            timeIn: "09:00",
-            timeOut: "17:00",
-            coveredTopics: []
-          }
-        ]
-      })
-      setTopicInput("")
+  const handleSubmit = () => {
+    // Validation
+    if (!formData.name.trim()) {
+      alert('Please enter an event name')
+      return
     }
+    if (!formData.venue.trim()) {
+      alert('Please enter a venue')
+      return
+    }
+    if (formData.schedule.length === 0) {
+      alert('Please add at least one schedule')
+      return
+    }
+    
+    // Check if at least one schedule has a date
+    const hasValidSchedule = formData.schedule.some(s => s.date.trim())
+    if (!hasValidSchedule) {
+      alert('Please set a date for at least one schedule')
+      return
+    }
+    
+    if (formData.schedule[0].coveredTopics.length === 0) {
+      alert('Please add at least one topic')
+      return
+    }
+
+  // Extract meeting ID from Teams URL (if any)
+      const meetingId = extractMeetingId(formData.teams_join_url ?? "");
+
+      // Build final payload
+      const payload = {
+        ...formData,
+        teams_meeting_id: meetingId ?? ""
+      };
+
+      console.log("Submitting form data:", payload);
+
+      // Send payload upward
+      onSubmit(payload);
+
+    // Reset form
+    setFormData({
+      name: "",
+      type: "Conference",
+      price: 0,
+      venue: "",
+      description: "",
+      teams_join_url: "",
+      teams_meeting_id: "",
+      schedule: [
+        {
+          date: "",
+          timeIn: "09:00",
+          timeOut: "17:00",
+          coveredTopics: []
+        }
+      ]
+    })
+    setTopicInput("")
   }
 
   const addTopic = () => {
@@ -110,7 +182,7 @@ export function EventModal({
           <DialogDescription>Fill in the details to create a new event</DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="space-y-6">
           {/* Event Name */}
           <div>
             <Label htmlFor="name" className="mb-2 block">Event Name</Label>
@@ -120,6 +192,18 @@ export function EventModal({
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="Enter event name"
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <Label htmlFor="description" className="mb-2 block">Description (Optional)</Label>
+            <textarea
+              id="description"
+              value={formData.description || ""}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              placeholder="Enter event description..."
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring min-h-[100px]"
             />
           </div>
 
@@ -145,7 +229,7 @@ export function EventModal({
 
           {/* Price */}
           <div>
-            <Label htmlFor="price" className="mb-2 block">Price ($)</Label>
+            <Label htmlFor="price" className="mb-2 block">Price (₱)</Label>
             <Input
               id="price"
               type="number"
@@ -172,110 +256,130 @@ export function EventModal({
             />
           </div>
 
-{/* Schedule Section */}
-<div className="space-y-4 border-t border-border pt-4">
-  <h3 className="font-semibold text-foreground">Schedule</h3>
+          {/* Schedule Section */}
+          <div className="space-y-4 border-t border-border pt-4">
+            <h3 className="font-semibold text-foreground">Schedule</h3>
 
-  {formData.schedule.map((sched, index) => (
-    <div key={index} className="grid grid-cols-3 gap-4 items-end">
-      <div>
-        <Label>Date</Label>
-        <Input
-          type="date"
-          value={sched.date}
-          onChange={(e) => {
-            const updated = [...formData.schedule]
-            updated[index].date = e.target.value
-            setFormData({ ...formData, schedule: updated })
-          }}
-        />
-      </div>
-      <div>
-        <Label>Start Time</Label>
-        <Input
-          type="time"
-          value={sched.timeIn}
-          onChange={(e) => {
-            const updated = [...formData.schedule]
-            updated[index].timeIn = e.target.value
-            setFormData({ ...formData, schedule: updated })
-          }}
-        />
-      </div>
-      <div>
-        <Label>End Time</Label>
-        <Input
-          type="time"
-          value={sched.timeOut}
-          onChange={(e) => {
-            const updated = [...formData.schedule]
-            updated[index].timeOut = e.target.value
-            setFormData({ ...formData, schedule: updated })
-          }}
-        />
-      </div>
-      <Button
-        type="button"
-        variant="ghost"
-        className="text-red-500"
-        onClick={() => {
-          const updated = formData.schedule.filter((_, i) => i !== index)
-          setFormData({ ...formData, schedule: updated })
-        }}
-        >
-        Remove
-      </Button>
-      
-    </div>
-    
-  ))}
+            {formData.schedule.map((sched, index) => (
+              <div key={index} className="space-y-4 p-4 border border-border rounded-lg">
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label>Date</Label>
+                    <Input
+                      type="date"
+                      value={sched.date}
+                      onChange={(e) => {
+                        const updated = [...formData.schedule]
+                        updated[index].date = e.target.value
+                        setFormData({ ...formData, schedule: updated })
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <Label>Start Time</Label>
+                    <Input
+                      type="time"
+                      value={sched.timeIn}
+                      onChange={(e) => {
+                        const updated = [...formData.schedule]
+                        updated[index].timeIn = e.target.value
+                        setFormData({ ...formData, schedule: updated })
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <Label>End Time</Label>
+                    <Input
+                      type="time"
+                      value={sched.timeOut}
+                      onChange={(e) => {
+                        const updated = [...formData.schedule]
+                        updated[index].timeOut = e.target.value
+                        setFormData({ ...formData, schedule: updated })
+                      }}
+                    />
+                  </div>
+                </div>
+                
+                {formData.schedule.length > 1 && (
+                  <Button
+                    variant="ghost"
+                    className="text-red-500 w-full"
+                    onClick={() => {
+                      const updated = formData.schedule.filter((_, i) => i !== index)
+                      setFormData({ ...formData, schedule: updated })
+                    }}
+                  >
+                    Remove This Day
+                  </Button>
+                )}
+              </div>
+            ))}
 
-          {/* Add Day Button */}
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() =>
-              setFormData((prev) => ({
-                ...prev,
-                schedule: [
-                  ...prev.schedule,
-                  {
-                    date: "",
-                    timeIn: "",
-                    timeOut: "",
-                    coveredTopics: [],
-                  },
-                ],
-              }))
-            }
-          >
-            + Add Another Day
-          </Button>
-        </div>
-
+            {/* Add Day Button */}
+            <Button
+              variant="outline"
+              onClick={() =>
+                setFormData((prev) => ({
+                  ...prev,
+                  schedule: [
+                    ...prev.schedule,
+                    {
+                      date: "",
+                      timeIn: "09:00",
+                      timeOut: "17:00",
+                      coveredTopics: [],
+                    },
+                  ],
+                }))
+              }
+            >
+              + Add Another Day
+            </Button>
+          </div>
 
           {/* Covered Topics */}
           <div className="space-y-4 border-t border-border pt-4">
             <h3 className="font-semibold text-foreground">Covered Topics</h3>
 
             <div className="flex gap-2">
-            <Input
+              <Input
                 disabled={formData.schedule.length === 0}
                 value={topicInput}
                 onChange={(e) => setTopicInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addTopic())}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault()
+                    addTopic()
+                  }
+                }}
                 placeholder="Enter topic and press Enter"
               />
 
               <Button
-                type="button"
                 onClick={addTopic}
                 disabled={formData.schedule.length === 0}
               >
                 Add
               </Button>
-
             </div>
+            {/* <div>
+              <Label htmlFor="teamsUrl" className="mb-2 block">
+                Microsoft Teams Meeting Link (optional)
+              </Label>
+              <Input
+                id="teamsUrl"
+                value={formData.teams_join_url || ""}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    teams_join_url: e.target.value,
+                  })
+                }
+                placeholder="Paste Teams meeting link here"
+              />
+            </div> */}
+
             {formData.schedule.length > 0 && formData.schedule[0].coveredTopics.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {formData.schedule[0].coveredTopics.map((topic, index) => (
@@ -285,7 +389,6 @@ export function EventModal({
                   >
                     {topic}
                     <button
-                      type="button"
                       onClick={() => removeTopic(index)}
                       className="hover:opacity-70"
                     >
@@ -295,19 +398,18 @@ export function EventModal({
                 ))}
               </div>
             )}
-
           </div>
 
           {/* Actions */}
           <div className="flex gap-3 border-t border-border pt-6">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+            <Button variant="outline" onClick={onClose} className="flex-1">
               Cancel
             </Button>
-            <Button type="submit" className="flex-1">
+            <Button onClick={handleSubmit} className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90">
               Create Event
             </Button>
           </div>
-        </form>
+        </div>
       </DialogContent>
     </Dialog>
   )

@@ -1,3 +1,5 @@
+// FILE 3: components/events-dashboard.tsx
+// ============================================
 "use client"
 
 import { useState, useEffect } from "react"
@@ -135,15 +137,18 @@ export function EventsDashboard({ onSelectEvent }: { onSelectEvent: (id: string)
         return {
           id: event.id.toString(),
           name: event.name,
+          description: event.description,
+          teams_join_url: event.teams_join_url ?? null,
+          teams_meeting_id: event.teams_meeting_id ?? null,
           type: event.type,
           price: Number(event.price),
           venue: event.venue,
           schedule:
             event.schedules?.map((s: any) => ({
-              day: s.day,
-              inTime: s.timeIn,
-              outTime: s.timeOut,
-              coveredTopics: event.topics ?? [],
+              date: s.day || s.date,
+              timeIn: s.timeIn,
+              timeOut: s.timeOut,
+              coveredTopics: event.topics ?? [], // Map topics from database to coveredTopics
             })) ?? [],
           attendees: stats,
           createdAt: event.created_at,
@@ -170,15 +175,77 @@ export function EventsDashboard({ onSelectEvent }: { onSelectEvent: (id: string)
     fetchEvents()
   }, [])
 
-  const handleCreateEvent = (newEvent: Omit<Event, "id" | "attendees" | "createdAt">) => {
-    const event: EventWithStats = {
-      ...newEvent,
-      id: Date.now().toString(),
-      attendees: { registered: 0, attended: 0, paid: 0 },
-      createdAt: new Date().toISOString(),
+  const handleCreateEvent = async (newEvent: Omit<Event, "id" | "attendees" | "createdAt">) => {
+    try {
+      // Generate a unique magic link
+      const magicLink = `${newEvent.name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`
+      
+      // Prepare the event data for Supabase
+      const eventData = {
+        name: newEvent.name,
+        type: newEvent.type,
+        price: newEvent.price,
+        venue: newEvent.venue,
+        description: newEvent.description || null,
+        schedules: newEvent.schedule.map(s => ({
+          day: s.date,
+          timeIn: s.timeIn,
+          timeOut: s.timeOut
+        })),
+        topics: newEvent.schedule[0]?.coveredTopics || [],
+        start_date: newEvent.schedule[0]?.date || new Date().toISOString(),
+        end_date: newEvent.schedule[newEvent.schedule.length - 1]?.date || new Date().toISOString(),
+        magic_link: magicLink,
+        status: 'active',
+        teams_join_url: newEvent.teams_join_url || null,
+        teams_meeting_id: newEvent.teams_meeting_id || null
+      }
+
+      // Insert into Supabase
+      const { data, error } = await supabase
+        .from('events')
+        .insert([eventData])
+        .select()
+        .single()
+
+      if (error) {
+        console.error('Error creating event:', error)
+        alert('Failed to create event. Please try again.')
+        return
+      }
+
+      if (data) {
+        // Create the event object with stats for local state
+        const event: EventWithStats = {
+          id: data.id.toString(),
+          name: data.name,
+          description: data.description,
+          type: data.type,
+          price: Number(data.price),
+          venue: data.venue,
+          schedule: data.schedules?.map((s: any) => ({
+            date: s.day,
+            timeIn: s.timeIn,
+            timeOut: s.timeOut,
+            coveredTopics: data.topics || []
+          })) || [],
+          attendees: { registered: 0, attended: 0, paid: 0 },
+          createdAt: data.created_at,
+          magic_link: data.magic_link,
+          start_date: data.start_date,
+          end_date: data.end_date
+        }
+
+        // Add to local state
+        setEvents([...events, event])
+        setIsModalOpen(false)
+        
+        alert('Event created successfully!')
+      }
+    } catch (err) {
+      console.error('Unexpected error:', err)
+      alert('An unexpected error occurred. Please try again.')
     }
-    setEvents([...events, event])
-    setIsModalOpen(false)
   }
 
   const now = new Date()
@@ -248,7 +315,7 @@ export function EventsDashboard({ onSelectEvent }: { onSelectEvent: (id: string)
                       {upcomingEvents.length} upcoming • {pastEvents.length} past
                     </p>
                   </div>
-                  <CalendarDays className="h-8 w-8 sm:h-10 sm:w-10 text-primary opacity-20" />
+                  <CalendarDays className="h-8 w-8 sm:h-10 sm:w-10 text-primary" />
                 </div>
               </CardContent>
             </Card>
@@ -262,7 +329,7 @@ export function EventsDashboard({ onSelectEvent }: { onSelectEvent: (id: string)
                     <p className="text-2xl sm:text-3xl font-bold text-foreground mt-1">{totalStats.registered}</p>
                     <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">Total attendees</p>
                   </div>
-                  <Users className="h-8 w-8 sm:h-10 sm:w-10 text-blue-500 opacity-20" />
+                  <Users className="h-8 w-8 sm:h-10 sm:w-10 text-blue-500" />
                 </div>
               </CardContent>
             </Card>
@@ -278,7 +345,7 @@ export function EventsDashboard({ onSelectEvent }: { onSelectEvent: (id: string)
                       {attendanceRate}% attendance rate
                     </p>
                   </div>
-                  <CheckCircle2 className="h-8 w-8 sm:h-10 sm:w-10 text-green-600 opacity-20" />
+                  <CheckCircle2 className="h-8 w-8 sm:h-10 sm:w-10 text-green-600" />
                 </div>
               </CardContent>
             </Card>
@@ -296,7 +363,7 @@ export function EventsDashboard({ onSelectEvent }: { onSelectEvent: (id: string)
                         : 0}% payment rate
                     </p>
                   </div>
-                  <CreditCard className="h-8 w-8 sm:h-10 sm:w-10 text-amber-600 opacity-20" />
+                  <CreditCard className="h-8 w-8 sm:h-10 sm:w-10 text-amber-600 " />
                 </div>
               </CardContent>
             </Card>

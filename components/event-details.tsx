@@ -1,4 +1,4 @@
-//components\event-details.tsx
+// ============================================
 "use client"
 import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -15,6 +15,8 @@ type EventWithStats = Omit<Event, "attendees"> & {
     attended: number
     paid: number
   }
+  teams_meeting_id?: string | null
+  teams_join_url?: string | null
 }
 
 export function EventDetails({ eventId, onBack }: { eventId: string; onBack: () => void }) {
@@ -22,10 +24,10 @@ export function EventDetails({ eventId, onBack }: { eventId: string; onBack: () 
 
   useEffect(() => {
     const fetchEvent = async () => {
-      // Fetch event details
+      // Fetch event details including topics
       const { data, error } = await supabase
         .from("events")
-        .select("*, magic_link, schedules")
+        .select("*, magic_link, schedules, topics")
         .eq("id", parseInt(eventId))
         .single()
   
@@ -72,6 +74,14 @@ export function EventDetails({ eventId, onBack }: { eventId: string; onBack: () 
         }
       })
 
+      // Map schedules and ensure topics are in coveredTopics
+      const mappedSchedules = (data.schedules || []).map((s: any) => ({
+        date: s.day || s.date,
+        timeIn: s.timeIn,
+        timeOut: s.timeOut,
+        coveredTopics: data.topics || [] // Map topics from database to coveredTopics
+      }))
+
       setEvent({
         id: data.id.toString(),
         name: data.name,
@@ -79,12 +89,14 @@ export function EventDetails({ eventId, onBack }: { eventId: string; onBack: () 
         type: data.type,
         price: Number(data.price),
         venue: data.venue,
-        schedule: data.schedules ?? [],
-        attendees: stats, // Now using stats object instead of single number
+        schedule: mappedSchedules,
+        attendees: stats,
         createdAt: data.created_at,
         magic_link: data.magic_link,
         start_date: data.start_date,
         end_date: data.end_date,
+        teams_meeting_id: data.teams_meeting_id,
+        teams_join_url: data.teams_join_url,
       })
     }
   

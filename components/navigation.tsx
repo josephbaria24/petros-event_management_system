@@ -5,6 +5,7 @@ import type React from "react"
 import { Calendar, Settings, LogOut, Bell, Search, QrCode } from "lucide-react"
 import { toast } from "sonner"
 import { supabase } from "@/lib/supabase-client"
+import { ModeToggle } from "./mode-toggle"
 
 interface NavigationProps {
   currentEventId?: string | null
@@ -48,11 +49,11 @@ export function Navigation({ currentEventId, onQRScanClick }: NavigationProps) {
     <>
       {/* Top navigation bar */}
       <nav className="border-b border-border bg-card">
-        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 relative">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-0 sm:py-0 relative">
           {/* Left: Logo */}
           <div className="flex items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-transparent">
-              <img src="/logo.png" alt="Logo" className="h-10 w-10 object-contain" />
+            <div className="flex h-20 w-20 items-center justify-center rounded-lg bg-transparent">
+              <img src="/transparent-logo.png" alt="Logo" className="h-20 w-20 object-contain" />
             </div>
 
             <div className="hidden sm:flex flex-col leading-tight">
@@ -93,6 +94,7 @@ export function Navigation({ currentEventId, onQRScanClick }: NavigationProps) {
                 className="rounded-lg border border-input bg-background pl-9 pr-4 py-2 text-sm text-foreground placeholder-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
             </div>
+            <ModeToggle/>
 
             {/* Bell */}
             <button

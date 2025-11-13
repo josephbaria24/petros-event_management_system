@@ -3,7 +3,10 @@ export type Event = {
   id: string
   name: string
   description?: string
+  teams_join_url?: string
+  teams_meeting_id?: string
   type: string
+  topics?: string[]
   price: number
   venue: string
   schedule: DaySchedule[]
