@@ -90,12 +90,13 @@ export default function EvaluationPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Validation
+    // Validation - Overall Rating
     if (!overallRating) {
       alert("Please rate the overall event")
       return
     }
 
+    // Validation - Rating Questions
     for (let i = 0; i < ratingQuestions.length; i++) {
       if (!ratings[i]) {
         alert(`Please answer question: "${ratingQuestions[i]}"`)
@@ -103,6 +104,28 @@ export default function EvaluationPage() {
       }
     }
 
+    // Validation - Open-ended questions (all required)
+    if (!likeMost.trim()) {
+      alert("Please answer: What did you like MOST about the event?")
+      return
+    }
+
+    if (!likeLeast.trim()) {
+      alert("Please answer: What did you like LEAST about the event?")
+      return
+    }
+
+    if (!futureTopic.trim()) {
+      alert("Please suggest a future topic for event you would like to attend.")
+      return
+    }
+
+    if (!additionalComments.trim()) {
+      alert("Please provide additional comments about the webinar.")
+      return
+    }
+
+    // Validation - Mailing List
     if (!mailingList) {
       alert("Please select if you want to be included in the mailing list")
       return
@@ -114,10 +137,10 @@ export default function EvaluationPage() {
       // Prepare answers object
       const answers: any = {
         rate: overallRating,
-        "like-most": likeMost || "n/a",
-        "like-least": likeLeast || "n/a",
-        suggest: futureTopic || "n/a",
-        comments: additionalComments || "n/a",
+        "like-most": likeMost,
+        "like-least": likeLeast,
+        suggest: futureTopic,
+        comments: additionalComments,
         interested: mailingList === "yes" ? "yes" : "no"
       }
 
@@ -257,9 +280,9 @@ export default function EvaluationPage() {
         {/* Overall Rating */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 sm:p-8 border dark:border-gray-700">
           <h3 className="text-base sm:text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4 sm:mb-6">
-            Overall, how do you rate the event?
+            Overall, how do you rate the event? <span className="text-red-500">*</span>
           </h3>
-          <RadioGroup value={overallRating} onValueChange={setOverallRating}>
+          <RadioGroup value={overallRating} onValueChange={setOverallRating} required>
             {/* Desktop Layout */}
             <div className="hidden sm:flex justify-between items-center">
               <span className="text-sm text-gray-600 dark:text-gray-400">Very poor</span>
@@ -304,7 +327,7 @@ export default function EvaluationPage() {
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 sm:p-8 border dark:border-gray-700">
           <h3 className="text-base sm:text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">
             Please rate your satisfaction with the content of the webinar by indicating your level
-            of agreement or disagreement with each of the following statements.
+            of agreement or disagreement with each of the following statements. <span className="text-red-500">*</span>
           </h3>
 
           <div className="space-y-6">
@@ -324,6 +347,7 @@ export default function EvaluationPage() {
                 <RadioGroup
                   value={ratings[index] || ""}
                   onValueChange={(value) => setRatings({ ...ratings, [index]: value })}
+                  required
                 >
                   {/* Desktop Layout */}
                   <div className="hidden lg:grid grid-cols-[1fr_repeat(5,100px)] gap-4">
@@ -367,52 +391,56 @@ export default function EvaluationPage() {
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 sm:p-8 border dark:border-gray-700 space-y-6">
           <div>
             <Label htmlFor="likeMost" className="text-sm sm:text-base font-semibold text-gray-800 dark:text-gray-100 mb-3 block">
-              What did you like MOST about the event?
+              What did you like MOST about the event? <span className="text-red-500">*</span>
             </Label>
             <Textarea
               id="likeMost"
               placeholder="Answer"
               value={likeMost}
               onChange={(e) => setLikeMost(e.target.value)}
+              required
               className="min-h-[80px] bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400"
             />
           </div>
 
           <div>
             <Label htmlFor="likeLeast" className="text-sm sm:text-base font-semibold text-gray-800 dark:text-gray-100 mb-3 block">
-              What did you like LEAST about the event?
+              What did you like LEAST about the event? <span className="text-red-500">*</span>
             </Label>
             <Textarea
               id="likeLeast"
               placeholder="Answer"
               value={likeLeast}
               onChange={(e) => setLikeLeast(e.target.value)}
+              required
               className="min-h-[80px] bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400"
             />
           </div>
 
           <div>
             <Label htmlFor="futureTopic" className="text-sm sm:text-base font-semibold text-gray-800 dark:text-gray-100 mb-3 block">
-              Suggest a future topic for event you would like to attend.
+              Suggest a future topic for event you would like to attend. <span className="text-red-500">*</span>
             </Label>
             <Textarea
               id="futureTopic"
               placeholder="Answer"
               value={futureTopic}
               onChange={(e) => setFutureTopic(e.target.value)}
+              required
               className="min-h-[80px] bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400"
             />
           </div>
 
           <div>
             <Label htmlFor="comments" className="text-sm sm:text-base font-semibold text-gray-800 dark:text-gray-100 mb-3 block">
-              Do you have any additional comments about the webinar?
+              Do you have any additional comments about the webinar? <span className="text-red-500">*</span>
             </Label>
             <Textarea
               id="comments"
               placeholder="Answer"
               value={additionalComments}
               onChange={(e) => setAdditionalComments(e.target.value)}
+              required
               className="min-h-[80px] bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400"
             />
           </div>
@@ -422,9 +450,9 @@ export default function EvaluationPage() {
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 sm:p-8 border dark:border-gray-700">
           <h3 className="text-sm sm:text-base font-semibold text-gray-800 dark:text-gray-100 mb-4">
             I am interested in attending future events offered by Petrosphere and its partner(s).
-            Please include me in the mailing list.
+            Please include me in the mailing list. <span className="text-red-500">*</span>
           </h3>
-          <RadioGroup value={mailingList} onValueChange={setMailingList}>
+          <RadioGroup value={mailingList} onValueChange={setMailingList} required>
             <div className="flex flex-col gap-3">
               <div className="flex items-center space-x-2">
                 <RadioGroupItem 
