@@ -173,18 +173,18 @@ export default function EvaluationPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-100 to-blue-200 flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-blue-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600 dark:text-blue-400" />
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-100 to-blue-200 flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full text-center">
-          <h2 className="text-2xl font-bold text-red-600 mb-4">Error</h2>
-          <p className="text-gray-700">{error}</p>
+      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-blue-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 max-w-md w-full text-center border dark:border-gray-700">
+          <h2 className="text-2xl font-bold text-red-600 dark:text-red-400 mb-4">Error</h2>
+          <p className="text-gray-700 dark:text-gray-300">{error}</p>
         </div>
       </div>
     )
@@ -192,13 +192,13 @@ export default function EvaluationPage() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-100 to-blue-200 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-12">
+      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-blue-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-12 border dark:border-gray-700">
           <div className="flex flex-col items-center text-center space-y-6">
             {/* Certificate icon */}
             <div className="relative">
               {sendingCertificate ? (
-                <Loader2 className="h-20 w-20 animate-spin text-blue-600" />
+                <Loader2 className="h-20 w-20 animate-spin text-blue-600 dark:text-blue-400" />
               ) : (
                 <svg className="w-20 h-20" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <rect x="15" y="20" width="60" height="45" rx="3" fill="#60A5FA" stroke="#3B82F6" strokeWidth="2"/>
@@ -215,22 +215,22 @@ export default function EvaluationPage() {
 
             {/* Success message */}
             <div className="space-y-4">
-              <h2 className="text-2xl font-bold text-green-600">
+              <h2 className="text-2xl font-bold text-green-600 dark:text-green-400">
                 Congratulations!
               </h2>
               
-              <p className="text-gray-700 leading-relaxed">
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
                 You have successfully submitted your evaluation!
               </p>
               
               {sendingCertificate ? (
-                <p className="text-gray-600 leading-relaxed">
+                <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
                   Sending your certificate to your email...
                 </p>
               ) : (
-                <p className="text-gray-700 leading-relaxed">
+                <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
                   You may check your email to access{" "}
-                  <span className="font-semibold text-blue-600">
+                  <span className="font-semibold text-blue-600 dark:text-blue-400">
                     your digital certificate
                   </span>.
                 </p>
@@ -243,55 +243,55 @@ export default function EvaluationPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-emerald-100 to-blue-200 py-4 sm:py-8 px-4">
+    <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-blue-100 dark:from-gray-900 dark:to-gray-800 py-4 sm:py-8 px-4">
       <form onSubmit={handleSubmit} className="max-w-3xl mx-auto space-y-4 sm:space-y-6">
         {/* Header */}
-        <div className="bg-white rounded-xl shadow-md p-4 sm:p-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">Event Evaluation Form</h1>
-          <p className="text-gray-600">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 sm:p-8 border dark:border-gray-700">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-100 mb-2">Event Evaluation Form</h1>
+          <p className="text-gray-600 dark:text-gray-400">
             {attendee?.personal_name} {attendee?.last_name}
           </p>
-          <p className="text-base sm:text-lg font-medium text-gray-700 mt-4">{event?.name}</p>
+          <p className="text-base sm:text-lg font-medium text-gray-700 dark:text-gray-300 mt-4">{event?.name}</p>
         </div>
 
         {/* Overall Rating */}
-        <div className="bg-white rounded-xl shadow-md p-4 sm:p-8">
-          <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-4 sm:mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 sm:p-8 border dark:border-gray-700">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4 sm:mb-6">
             Overall, how do you rate the event?
           </h3>
           <RadioGroup value={overallRating} onValueChange={setOverallRating}>
             {/* Desktop Layout */}
             <div className="hidden sm:flex justify-between items-center">
-              <span className="text-sm text-gray-600">Very poor</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">Very poor</span>
               <div className="flex gap-8">
                 {[1, 2, 3, 4, 5].map((value) => (
                   <div key={value} className="flex flex-col items-center gap-2">
-                    <span className="text-sm font-medium">{value}</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{value}</span>
                     <RadioGroupItem 
                       value={value.toString()} 
                       id={`overall-${value}`}
-                      className="h-6 w-6 border-2 border-gray-500"
+                      className="h-6 w-6 border-2 border-gray-500 dark:border-gray-400"
                     />
                   </div>
                 ))}
               </div>
-              <span className="text-sm text-gray-600">Excellent</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">Excellent</span>
             </div>
 
             {/* Mobile Layout */}
             <div className="flex sm:hidden flex-col gap-3">
-              <div className="flex justify-between text-xs text-gray-600 mb-2">
+              <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400 mb-2">
                 <span>Very poor</span>
                 <span>Excellent</span>
               </div>
               <div className="flex justify-between">
                 {[1, 2, 3, 4, 5].map((value) => (
                   <div key={value} className="flex flex-col items-center gap-2">
-                    <span className="text-sm font-medium">{value}</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{value}</span>
                     <RadioGroupItem 
                       value={value.toString()} 
                       id={`overall-mobile-${value}`}
-                      className="h-6 w-6 border-2 border-gray-500"
+                      className="h-6 w-6 border-2 border-gray-500 dark:border-gray-400"
                     />
                   </div>
                 ))}
@@ -301,15 +301,15 @@ export default function EvaluationPage() {
         </div>
 
         {/* Rating Questions */}
-        <div className="bg-white rounded-xl shadow-md p-4 sm:p-8">
-          <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 sm:p-8 border dark:border-gray-700">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">
             Please rate your satisfaction with the content of the webinar by indicating your level
             of agreement or disagreement with each of the following statements.
           </h3>
 
           <div className="space-y-6">
             {/* Desktop Table Header */}
-            <div className="hidden lg:grid grid-cols-[1fr_repeat(5,100px)] gap-4 text-sm font-medium text-gray-700 border-b pb-3">
+            <div className="hidden lg:grid grid-cols-[1fr_repeat(5,100px)] gap-4 text-sm font-medium text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 pb-3">
               <div></div>
               <div className="text-center">Strongly<br/>Disagree</div>
               <div className="text-center">Disagree</div>
@@ -319,8 +319,8 @@ export default function EvaluationPage() {
             </div>
 
             {ratingQuestions.map((question, index) => (
-              <div key={index} className="border-b pb-4 last:border-b-0">
-                <div className="text-sm text-gray-700 mb-3 font-medium">{question}</div>
+              <div key={index} className="border-b border-gray-200 dark:border-gray-700 pb-4 last:border-b-0">
+                <div className="text-sm text-gray-700 dark:text-gray-300 mb-3 font-medium">{question}</div>
                 <RadioGroup
                   value={ratings[index] || ""}
                   onValueChange={(value) => setRatings({ ...ratings, [index]: value })}
@@ -333,7 +333,7 @@ export default function EvaluationPage() {
                         <RadioGroupItem 
                           value={value} 
                           id={`q${index}-${value}`}
-                          className="h-6 w-6 border-2 border-gray-500"
+                          className="h-6 w-6 border-2 border-gray-500 dark:border-gray-400"
                         />
                       </div>
                     ))}
@@ -346,11 +346,11 @@ export default function EvaluationPage() {
                         <RadioGroupItem 
                           value={value} 
                           id={`q${index}-mobile-${value}`}
-                          className="h-5 w-5 border-2 border-gray-500 flex-shrink-0"
+                          className="h-5 w-5 border-2 border-gray-500 dark:border-gray-400 flex-shrink-0"
                         />
                         <Label 
                           htmlFor={`q${index}-mobile-${value}`}
-                          className="text-sm cursor-pointer"
+                          className="text-sm cursor-pointer text-gray-700 dark:text-gray-300"
                         >
                           {ratingLabels[i]}
                         </Label>
@@ -364,9 +364,9 @@ export default function EvaluationPage() {
         </div>
 
         {/* Open-ended Questions */}
-        <div className="bg-white rounded-xl shadow-md p-4 sm:p-8 space-y-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 sm:p-8 border dark:border-gray-700 space-y-6">
           <div>
-            <Label htmlFor="likeMost" className="text-sm sm:text-base font-semibold text-gray-800 mb-3 block">
+            <Label htmlFor="likeMost" className="text-sm sm:text-base font-semibold text-gray-800 dark:text-gray-100 mb-3 block">
               What did you like MOST about the event?
             </Label>
             <Textarea
@@ -374,12 +374,12 @@ export default function EvaluationPage() {
               placeholder="Answer"
               value={likeMost}
               onChange={(e) => setLikeMost(e.target.value)}
-              className="min-h-[80px]"
+              className="min-h-[80px] bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400"
             />
           </div>
 
           <div>
-            <Label htmlFor="likeLeast" className="text-sm sm:text-base font-semibold text-gray-800 mb-3 block">
+            <Label htmlFor="likeLeast" className="text-sm sm:text-base font-semibold text-gray-800 dark:text-gray-100 mb-3 block">
               What did you like LEAST about the event?
             </Label>
             <Textarea
@@ -387,12 +387,12 @@ export default function EvaluationPage() {
               placeholder="Answer"
               value={likeLeast}
               onChange={(e) => setLikeLeast(e.target.value)}
-              className="min-h-[80px]"
+              className="min-h-[80px] bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400"
             />
           </div>
 
           <div>
-            <Label htmlFor="futureTopic" className="text-sm sm:text-base font-semibold text-gray-800 mb-3 block">
+            <Label htmlFor="futureTopic" className="text-sm sm:text-base font-semibold text-gray-800 dark:text-gray-100 mb-3 block">
               Suggest a future topic for event you would like to attend.
             </Label>
             <Textarea
@@ -400,12 +400,12 @@ export default function EvaluationPage() {
               placeholder="Answer"
               value={futureTopic}
               onChange={(e) => setFutureTopic(e.target.value)}
-              className="min-h-[80px]"
+              className="min-h-[80px] bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400"
             />
           </div>
 
           <div>
-            <Label htmlFor="comments" className="text-sm sm:text-base font-semibold text-gray-800 mb-3 block">
+            <Label htmlFor="comments" className="text-sm sm:text-base font-semibold text-gray-800 dark:text-gray-100 mb-3 block">
               Do you have any additional comments about the webinar?
             </Label>
             <Textarea
@@ -413,14 +413,14 @@ export default function EvaluationPage() {
               placeholder="Answer"
               value={additionalComments}
               onChange={(e) => setAdditionalComments(e.target.value)}
-              className="min-h-[80px]"
+              className="min-h-[80px] bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400"
             />
           </div>
         </div>
 
         {/* Mailing List */}
-        <div className="bg-white rounded-xl shadow-md p-4 sm:p-8">
-          <h3 className="text-sm sm:text-base font-semibold text-gray-800 mb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 sm:p-8 border dark:border-gray-700">
+          <h3 className="text-sm sm:text-base font-semibold text-gray-800 dark:text-gray-100 mb-4">
             I am interested in attending future events offered by Petrosphere and its partner(s).
             Please include me in the mailing list.
           </h3>
@@ -430,17 +430,17 @@ export default function EvaluationPage() {
                 <RadioGroupItem 
                   value="yes" 
                   id="mailing-yes"
-                  className="h-5 w-5 border-2 border-gray-500"
+                  className="h-5 w-5 border-2 border-gray-500 dark:border-gray-400"
                 />
-                <Label htmlFor="mailing-yes" className="cursor-pointer">Yes</Label>
+                <Label htmlFor="mailing-yes" className="cursor-pointer text-gray-700 dark:text-gray-300">Yes</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem 
                   value="no" 
                   id="mailing-no"
-                  className="h-5 w-5 border-2 border-gray-500"
+                  className="h-5 w-5 border-2 border-gray-500 dark:border-gray-400"
                 />
-                <Label htmlFor="mailing-no" className="cursor-pointer">No</Label>
+                <Label htmlFor="mailing-no" className="cursor-pointer text-gray-700 dark:text-gray-300">No</Label>
               </div>
             </div>
           </RadioGroup>
@@ -451,7 +451,7 @@ export default function EvaluationPage() {
           <Button
             type="submit"
             disabled={submitting}
-            className="bg-indigo-900 hover:bg-indigo-800 text-white px-8 sm:px-12 py-4 sm:py-6 text-base sm:text-lg rounded-lg w-full sm:w-auto"
+            className="bg-indigo-900 hover:bg-indigo-800 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-white px-8 sm:px-12 py-4 sm:py-6 text-base sm:text-lg rounded-lg w-full sm:w-auto"
           >
             {submitting ? (
               <>
