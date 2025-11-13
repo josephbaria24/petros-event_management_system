@@ -718,7 +718,7 @@ export default function CertificateTemplateModal({ eventId, open, onClose }: Cer
                     onMouseLeave={() => setIsDragging(false)}
                   />
                   {editingField && (
-                    <div className="absolute top-4 left-1/2 transform -translate-x-1/2 w-96 bg-white border-2 border-primary rounded-lg shadow-lg p-4 z-10">
+                    <div className="absolute top-4 left-1/2 transform -translate-x-1/2 w-96 bg-background border-2 border-primary rounded-lg shadow-lg p-4 z-10">
                       <Label className="mb-2 block">Edit Text</Label>
                       <Input
                         value={editingValue}
