@@ -5,7 +5,15 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { CheckCircle2, XCircle, Loader2, Clock, TrendingUp, Users } from "lucide-react"
+import { CheckCircle2, XCircle, Loader2, Clock, TrendingUp, Users, Filter } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 interface SendEvaluationsModalProps {
   eventId: number
@@ -25,6 +33,7 @@ interface Attendee {
   last_name: string
   email: string
   hassentevaluation: boolean
+  hasevaluation: boolean
   payment_status?: string
   roles?: string[]
   attendance?: Record<string, boolean> | null
@@ -43,6 +52,8 @@ export default function SendEvaluationsModal({
   const [searchQuery, setSearchQuery] = useState("")
   const [result, setResult] = useState<SendResult | null>(null)
   const [showOnlyAttendees, setShowOnlyAttendees] = useState(false)
+  const [hideAlreadySent, setHideAlreadySent] = useState(false)
+  const [hideCompleted, setHideCompleted] = useState(false)
 
   // Fetch attendees
   useEffect(() => {
@@ -52,7 +63,7 @@ export default function SendEvaluationsModal({
       const { data, error } = await supabase
         .from("attendees")
         .select(
-          "id, personal_name, last_name, email, hassentevaluation, payment_status, roles, attendance"
+          "id, personal_name, last_name, email, hassentevaluation, hasevaluation, payment_status, roles, attendance"
         )
         .eq("event_id", eventId)
       if (!error && data) setAttendees(data)
@@ -82,6 +93,14 @@ export default function SendEvaluationsModal({
       const roles = a.roles || []
       const isAttendee = roles.some(r => r.toLowerCase() === "attendee")
       return isAttendee && days > 0
+    })
+    .filter(a => {
+      if (hideAlreadySent && a.hassentevaluation) return false
+      return true
+    })
+    .filter(a => {
+      if (hideCompleted && a.hasevaluation) return false
+      return true
     })
 
   // Select toggles
@@ -168,26 +187,59 @@ export default function SendEvaluationsModal({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-6xl max-h-[80vh] flex flex-col rounded-xl bg-card shadow-lg">
+      <DialogContent className="max-w-6xl max-h-[80vh] flex flex-col rounded-xl bg-card shadow-lg" showCloseButton={false}>
         <DialogHeader className=" pb-2 ">
           <div className="flex justify-between items-center">
             <DialogTitle className="text-lg font-bold ">
               Send Evaluations
             </DialogTitle>
 
-            {/* Action button to toggle visibility */}
-            <Button
-              variant={showOnlyAttendees ? "secondary" : "outline"}
-              onClick={() => setShowOnlyAttendees(!showOnlyAttendees)}
-              className={`flex items-center gap-2 ${
-                showOnlyAttendees
-                  ? "bg-background "
-                  : ""
-              }`}
-            >
-              <Users className="h-4 w-4" />
-              {showOnlyAttendees ? "Show All" : "Hide Non-Attendees"}
-            </Button>
+            {/* Filter Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={`flex items-center gap-2 ${
+                    (showOnlyAttendees || hideAlreadySent || hideCompleted)
+                      ? "bg-primary/10 border-primary"
+                      : ""
+                  }`}
+                >
+                  <Filter className="h-4 w-4" />
+                  Filters
+                  {(showOnlyAttendees || hideAlreadySent || hideCompleted) && (
+                    <span className="ml-1 px-1.5 py-0.5 bg-primary text-white text-xs rounded-full">
+                      {[showOnlyAttendees, hideAlreadySent, hideCompleted].filter(Boolean).length}
+                    </span>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>Filter Options</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuCheckboxItem
+                  checked={showOnlyAttendees}
+                  onCheckedChange={setShowOnlyAttendees}
+                >
+                  <Users className="h-4 w-4 mr-2" />
+                  Hide Non-Attendees
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={hideAlreadySent}
+                  onCheckedChange={setHideAlreadySent}
+                >
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Hide Already Sent
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={hideCompleted}
+                  onCheckedChange={setHideCompleted}
+                >
+                  <CheckCircle2 className="h-4 w-4 mr-2 text-blue-600" />
+                  Hide Completed
+                </DropdownMenuCheckboxItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </DialogHeader>
 
@@ -275,13 +327,14 @@ export default function SendEvaluationsModal({
             {/* Table */}
             <div className="flex-1 overflow-y-auto border border-gray-400 rounded-lg min-h-0">
               <div className="sticky top-0 bg-card border-b border-gray-200 font-semibold text-sm ">
-                <div className="grid grid-cols-12 gap-4 px-4 py-3">
-                  <div className="col-span-1">#</div>
-                  <div className="col-span-3">Name</div>
-                  <div className="col-span-3">Email</div>
-                  <div className="col-span-2 text-center">Role(s)</div>
-                  <div className="col-span-1 text-center">Days Present</div>
-                  <div className="col-span-2 text-center">Payment</div>
+                <div className="grid grid-cols-[auto_minmax(200px,2fr)_minmax(200px,300px)_minmax(120px,150px)_60px_60px_90px] gap-3 px-4 py-3">
+                  <div className="flex items-center">#</div>
+                  <div className="flex items-center">Name</div>
+                  <div className="flex items-center">Email</div>
+                  <div className="flex items-center justify-center">Role(s)</div>
+                  <div className="flex items-center justify-center">Days</div>
+                  <div className="flex items-center justify-center">Sent</div>
+                  <div className="flex items-center justify-center">Completed</div>
                 </div>
               </div>
 
@@ -295,13 +348,13 @@ export default function SendEvaluationsModal({
                     <div
                       key={a.id}
                       onClick={(e) => !sending && handleRowClick(a.id, e)}
-                      className={`grid grid-cols-12 gap-4 px-4 py-3 items-center transition cursor-pointer ${
+                      className={`grid grid-cols-[auto_minmax(160px,2fr)_minmax(180px,280px)_minmax(120px,150px)_60px_60px_90px] gap-3 px-4 py-3 items-center transition cursor-pointer ${
                         selectedIds.includes(a.id)
                           ? 'bg-primary/10 '
                           : 'hover:bg-secondary'
                       } ${sending ? 'cursor-not-allowed opacity-50' : ''}`}
                     >
-                      <div className="col-span-1 flex items-center gap-2">
+                      <div className="flex items-center gap-2">
                         <input
                           type="checkbox"
                           checked={selectedIds.includes(a.id)}
@@ -312,28 +365,40 @@ export default function SendEvaluationsModal({
                         <span className="text-sm text-gray-500">{i + 1}</span>
                       </div>
 
-                      <div className="col-span-3 font-medium ">
+                      <div className="font-medium truncate">
                         {a.last_name}, {a.personal_name}
                       </div>
 
-                      <div className="col-span-3 text-sm  truncate">
+                      <div className="text-sm truncate" title={a.email || "No email"}>
                         {a.email || <span className="text-red-500 italic">No email</span>}
                       </div>
 
-                      <div className="col-span-2 text-center">
+                      <div className="text-center truncate">
                         {a.roles && a.roles.length > 0 ? (
-                          <span className="text-xs ">{a.roles.join(", ")}</span>
+                          <span className="text-xs">{a.roles.join(", ")}</span>
                         ) : (
                           <span className="text-gray-400 text-xs italic">—</span>
                         )}
                       </div>
 
-                      <div className="col-span-1 text-center text-sm ">
+                      <div className="flex justify-center text-sm">
                         {countDaysPresent(a.attendance)}
                       </div>
 
-                      <div className="col-span-2 flex justify-center">
-                        {getPaymentStatusBadge(a.payment_status)}
+                      <div className="flex justify-center">
+                        {a.hassentevaluation ? (
+                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-gray-300" />
+                        )}
+                      </div>
+
+                      <div className="flex justify-center">
+                        {a.hasevaluation ? (
+                          <CheckCircle2 className="h-4 w-4 text-blue-600" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-gray-300" />
+                        )}
                       </div>
                     </div>
                   ))}
