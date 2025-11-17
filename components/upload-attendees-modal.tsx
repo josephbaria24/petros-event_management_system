@@ -41,11 +41,12 @@ export default function UploadAttendeesModal({ eventId, open, onClose, onSuccess
   const requiredHeaders = [
     { field: "personal_name", required: true, description: "First Name" },
     { field: "last_name", required: true, description: "Last Name" },
+    { field: "email", description: "Email Address" },
   ]
 
   const optionalHeaders = [
     { field: "middle_name", description: "Middle Name" },
-    { field: "email", description: "Email Address" },
+    
     { field: "mobile_number", description: "Mobile Number" },
     { field: "date_of_birth", description: "Date of Birth (YYYY-MM-DD)" },
     { field: "address", description: "Address" },
