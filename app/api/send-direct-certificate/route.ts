@@ -32,16 +32,10 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
     : { r: 0, g: 0, b: 0 };
 }
 
-function capitalizeFirstLetter(str: string): string {
+// UPDATED: Capitalize ALL letters
+function capitalizeAllLetters(str: string): string {
   if (!str) return str;
-  return str
-    .trim()
-    .split(' ')
-    .map(word => {
-      if (!word) return word;
-      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-    })
-    .join(' ');
+  return str.trim().toUpperCase();
 }
 
 async function generateCertificatePDF(
@@ -113,7 +107,7 @@ async function generateCertificatePDF(
             label: "Attendee Name",
             value: "{{attendee_name}}",
             x: 421,
-            y: 260, // Changed from 335 to match other routes
+            y: 260,
             fontSize: 36,
             fontWeight: "bold",
             color: "#2C3E50",
@@ -176,7 +170,6 @@ async function generateCertificatePDF(
         x = field.x - textWidth;
       }
 
-      // Convert Y coordinate from canvas (top=0) to PDF (bottom=0)
       const pdfY = 595 - field.y;
 
       page.drawText(text, {
@@ -275,9 +268,9 @@ export async function POST(req: Request) {
     }
 
     const event = attendee.events;
-    // Capitalize first letter of first name and last name
-    const firstName = capitalizeFirstLetter(attendee.personal_name);
-    const lastName = capitalizeFirstLetter(attendee.last_name);
+    // UPDATED: Capitalize ALL letters
+    const firstName = capitalizeAllLetters(attendee.personal_name);
+    const lastName = capitalizeAllLetters(attendee.last_name);
     const fullName = `${firstName} ${lastName}`;
     const eventDate = formatEventDate(event.start_date, event.end_date);
 

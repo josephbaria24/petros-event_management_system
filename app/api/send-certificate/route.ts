@@ -32,16 +32,10 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
     : { r: 0, g: 0, b: 0 };
 }
 
-function capitalizeFirstLetter(str: string): string {
+// UPDATED: Capitalize ALL letters
+function capitalizeAllLetters(str: string): string {
   if (!str) return str;
-  return str
-    .trim()
-    .split(' ')
-    .map(word => {
-      if (!word) return word;
-      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-    })
-    .join(' ');
+  return str.trim().toUpperCase();
 }
 
 async function generateCertificatePDF(
@@ -293,8 +287,8 @@ export async function POST(req: Request) {
 
     const event = attendee.events;
     // Capitalize first letter of first name and last name
-    const firstName = capitalizeFirstLetter(attendee.personal_name);
-    const lastName = capitalizeFirstLetter(attendee.last_name);
+    const firstName = capitalizeAllLetters(attendee.personal_name);
+    const lastName = capitalizeAllLetters(attendee.last_name);
     const fullName = `${firstName} ${lastName}`;
     const eventDate = formatEventDate(event.start_date, event.end_date);
 
