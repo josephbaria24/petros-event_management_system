@@ -13,6 +13,8 @@ import CertificateTemplateModal from "@/components/certificate-template-modal"
 import ExportAttendeesModal from "@/components/export-attendees-modal"
 import DownloadCertificatesModal from "@/components/download-certificates-modal"
 import SendDirectCertificateModal from "@/components/send-direct-certificate-modal"
+import UploadAttendeesModal from "@/components/upload-attendees-modal"
+import EvaluationResultsModal from "@/components/evaluation-results-modal"
 import { supabase } from "@/lib/supabase-client"
 
 // Extended Event type with stats
@@ -69,6 +71,8 @@ export function EventDetailsCard({ event }: { event: EventWithStats }) {
   const [showExportModal, setShowExportModal] = useState(false)
   const [showDownloadCertificatesModal, setShowDownloadCertificatesModal] = useState(false)
   const [showSendDirectCertificateModal, setShowSendDirectCertificateModal] = useState(false)
+  const [showUploadAttendeesModal, setShowUploadAttendeesModal] = useState(false)
+  const [showEvaluationResultsModal, setShowEvaluationResultsModal] = useState(false)
 
   const actions = [
     { label: "Open Registration", icon: UserPlus },
@@ -77,10 +81,10 @@ export function EventDetailsCard({ event }: { event: EventWithStats }) {
     { label: "Send Direct Certificate", icon: Award },
     { label: "Export Attendees", icon: Download },
     { label: "Download Certificates", icon: Award },
-    { label: "Download Badges", icon: FileUp },
+    // { label: "Download Badges", icon: FileUp },
     { label: "Show Evaluation Results", icon: BarChart3 },
     { label: "Upload Attendees", icon: Upload },
-    { label: "Sync Teams Attendance", icon: Users }
+    // { label: "Sync Teams Attendance", icon: Users }
   ]
 
   async function syncTeamsAttendance(eventId: string, meetingId?: string | null) {
@@ -190,6 +194,12 @@ export function EventDetailsCard({ event }: { event: EventWithStats }) {
                       }
                       if (action.label === "Send Direct Certificate") {
                         setShowSendDirectCertificateModal(true)
+                      }
+                      if (action.label === "Upload Attendees") {
+                        setShowUploadAttendeesModal(true)
+                      }
+                      if (action.label === "Show Evaluation Results") {
+                        setShowEvaluationResultsModal(true)
                       }
                     }}
                   >
@@ -498,6 +508,23 @@ export function EventDetailsCard({ event }: { event: EventWithStats }) {
         scheduleDates={editedEvent.schedule || []}
         open={showSendDirectCertificateModal}
         onClose={() => setShowSendDirectCertificateModal(false)}
+      />
+
+      <UploadAttendeesModal
+        eventId={Number(event.id)}
+        open={showUploadAttendeesModal}
+        onClose={() => setShowUploadAttendeesModal(false)}
+        onSuccess={() => {
+          // Optionally refresh the page or update attendee stats
+          window.location.reload()
+        }}
+      />
+
+      <EvaluationResultsModal
+        eventId={Number(event.id)}
+        eventName={event.name}
+        open={showEvaluationResultsModal}
+        onClose={() => setShowEvaluationResultsModal(false)}
       />
     </Card>
   )

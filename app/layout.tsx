@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   title: "Petrosphere Event Manager",
   description:
     "Developed by Petrosphere DSIS for managing events and attendees efficiently.",
-  generator: "v0.app",
+ 
 }
 
 export default function RootLayout({
