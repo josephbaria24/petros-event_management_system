@@ -14,14 +14,14 @@ export async function POST(req: Request) {
 
     // 2️⃣ Configure SMTP
     const transporter = nodemailer.createTransport({
-      host: "smtp.hostinger.com",
-      port: 465,
-      secure: true,
+      host: "smtp.sendlayer.net",
+      port: 587,
+      secure: false,
       auth: {
-        user: "no-reply@petros-global.com",
-        pass: "@Notsotrickypassword123",
+        user: "2433A8191660728E311639BB642398DC",
+        pass: process.env.SENDLAYER_SMTP_PASSWORD!,
       },
-    })
+    });
 
     // 3️⃣ Email HTML Template
     const html = `

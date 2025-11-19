@@ -11,14 +11,14 @@ const supabase = createClient(
 );
 
 const transporter = nodemailer.createTransport({
-  host: "smtp.hostinger.com",
-  port: 465,
-  secure: true,
-  auth: {
-    user: "no-reply@petros-global.com",
-    pass: "@Notsotrickypassword123",
-  },
-});
+    host: "smtp.sendlayer.net",
+    port: 587,
+    secure: false,
+    auth: {
+      user: "2433A8191660728E311639BB642398DC",
+      pass: process.env.SENDLAYER_SMTP_PASSWORD!,
+    },
+  });
 
 // Import PDF generation function from your existing route
 // (Copy the entire generateCertificatePDF, hexToRgb, capitalizeAllLetters functions here)
@@ -84,7 +84,7 @@ export async function POST(req: Request) {
 
         // Send email
         await transporter.sendMail({
-          from: '"Petros" <no-reply@petros-global.com>',
+            from: '"Petrosphere" <info@petros-global.com>',
           to: attendee.email,
           subject: `Certificate - ${event.name}`,
           html: `
