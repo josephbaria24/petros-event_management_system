@@ -1,3 +1,5 @@
+//app\api\send-confirmation\route.ts
+
 import nodemailer from "nodemailer"
 import QRCode from "qrcode"
 import { NextResponse } from "next/server"
