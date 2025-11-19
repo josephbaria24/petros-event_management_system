@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Textarea } from "@/components/ui/textarea"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
 import type { Event } from "@/types/event"
 import SendEvaluationsModal from "@/components/send-evaluation-modal"
 import CertificateTemplateModal from "@/components/certificate-template-modal"
@@ -17,28 +19,26 @@ import UploadAttendeesModal from "@/components/upload-attendees-modal"
 import EvaluationResultsModal from "@/components/evaluation-results-modal"
 import { supabase } from "@/lib/supabase-client"
 
-// Extended Event type with stats
 type EventWithStats = Omit<Event, "attendees"> & {
   attendees: {
     registered: number
     attended: number
     paid: number
   }
+  allow_reevaluation?: boolean
 }
 
 export function EventDetailsCard({ event }: { event: EventWithStats }) {
   const [isEditing, setIsEditing] = useState(false)
   const [editedEvent, setEditedEvent] = useState(event)
   const [topicInput, setTopicInput] = useState("")
+  const [allowReevaluation, setAllowReevaluation] = useState(event.allow_reevaluation || false)
   
-  // Get topics from the first schedule item's coveredTopics
   const currentTopics = editedEvent.schedule?.[0]?.coveredTopics || []
   
   const handleSave = async () => {
-    // Extract topics from the first schedule item
     const topics = editedEvent.schedule?.[0]?.coveredTopics || []
     
-    // Prepare schedules for saving
     const schedulesToSave = editedEvent.schedule.map(s => ({
       day: s.date,
       timeIn: s.timeIn,
@@ -52,8 +52,9 @@ export function EventDetailsCard({ event }: { event: EventWithStats }) {
         venue: editedEvent.venue,
         price: editedEvent.price,
         description: editedEvent.description,
-        topics: topics, // Save topics to the database
-        schedules: schedulesToSave // Save schedules
+        topics: topics,
+        schedules: schedulesToSave,
+        allow_reevaluation: allowReevaluation // ✅ Save re-evaluation setting
       })
       .eq('id', event.id)
     
@@ -81,36 +82,13 @@ export function EventDetailsCard({ event }: { event: EventWithStats }) {
     { label: "Send Direct Certificate", icon: Award },
     { label: "Export Attendees", icon: Download },
     { label: "Download Certificates", icon: Award },
-    // { label: "Download Badges", icon: FileUp },
     { label: "Show Evaluation Results", icon: BarChart3 },
     { label: "Upload Attendees", icon: Upload },
-    // { label: "Sync Teams Attendance", icon: Users }
   ]
-
-  async function syncTeamsAttendance(eventId: string, meetingId?: string | null) {
-    if (!meetingId) {
-      alert("This event has no Microsoft Teams Meeting ID.");
-      return;
-    }
-  
-    try {
-      const res = await fetch(`/api/teams-sync?eventId=${eventId}&meetingId=${meetingId}`);
-      const result = await res.json();
-  
-      if (!res.ok) throw new Error(result.error);
-  
-      alert(`Attendance synced successfully! Updated: ${result.updatedCount} attendees.`);
-  
-    } catch (err: any) {
-      console.error("Sync error:", err);
-      alert("Failed to sync attendance. Check console.");
-    }
-  }
 
   const handleAddTopic = () => {
     if (!topicInput.trim()) return
     
-    // Ensure we have at least one schedule item
     if (editedEvent.schedule.length === 0) {
       setEditedEvent({
         ...editedEvent,
@@ -280,6 +258,35 @@ export function EventDetailsCard({ event }: { event: EventWithStats }) {
               )}
             </div>
 
+            {/* ✅ NEW: Re-evaluation Toggle */}
+            {isEditing && (
+              <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <Label htmlFor="allow-reevaluation" className="text-sm font-semibold text-blue-900 dark:text-blue-100">
+                      Allow Re-evaluation
+                    </Label>
+                    <p className="text-xs text-blue-700 dark:text-blue-300">
+                      When enabled, attendees can retake the evaluation even if already completed and receive a new certificate
+                    </p>
+                  </div>
+                  <Switch
+                    id="allow-reevaluation"
+                    checked={allowReevaluation}
+                    onCheckedChange={setAllowReevaluation}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Show re-evaluation status when not editing */}
+            {!isEditing && allowReevaluation && (
+              <div className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
+                <CheckCircle2 className="h-4 w-4" />
+                <span className="font-medium">Re-evaluation is enabled for this event</span>
+              </div>
+            )}
+
             {/* Schedule Section */}
             <div className="space-y-4 border-t border-border pt-4">
               <label className="text-sm font-medium text-foreground">Schedule</label>
@@ -360,7 +367,7 @@ export function EventDetailsCard({ event }: { event: EventWithStats }) {
                               date: "",
                               timeIn: "",
                               timeOut: "",
-                              coveredTopics: currentTopics, // Share the same topics
+                              coveredTopics: currentTopics,
                             },
                           ],
                         })
@@ -429,7 +436,7 @@ export function EventDetailsCard({ event }: { event: EventWithStats }) {
               </div>
             </div>
 
-            {/* 📊 Attendee Stats Section */}
+            {/* Attendee Stats Section */}
             {!isEditing && (
               <div className="pt-4 border-t border-border">
                 <p className="text-sm font-medium text-muted-foreground mb-3">Attendee Statistics</p>
@@ -460,6 +467,7 @@ export function EventDetailsCard({ event }: { event: EventWithStats }) {
                   variant="outline"
                   onClick={() => {
                     setEditedEvent(event)
+                    setAllowReevaluation(event.allow_reevaluation || false)
                     setIsEditing(false)
                   }}
                   className="flex-1"
@@ -515,7 +523,6 @@ export function EventDetailsCard({ event }: { event: EventWithStats }) {
         open={showUploadAttendeesModal}
         onClose={() => setShowUploadAttendeesModal(false)}
         onSuccess={() => {
-          // Optionally refresh the page or update attendee stats
           window.location.reload()
         }}
       />

@@ -1,8 +1,9 @@
-// app/api/send-evaluations/route.ts
+// app/api/send-direct-certificate-bulk/route.ts
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import { createClient } from "@supabase/supabase-js";
 import { EmailQueueManager, canSendEmailsToday } from "@/lib/email-queue";
+import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -19,56 +20,52 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+// Import PDF generation function from your existing route
+// (Copy the entire generateCertificatePDF, hexToRgb, capitalizeAllLetters functions here)
+
 export async function POST(req: Request) {
   try {
-    const { eventId, attendeeIds } = await req.json();
+    const { attendeeIds, templateType = "participation" } = await req.json();
 
-    if (!eventId || !attendeeIds?.length) {
+    if (!attendeeIds?.length) {
       return NextResponse.json(
-        { error: "Missing eventId or attendeeIds" },
+        { error: "Missing attendee IDs" },
         { status: 400 }
       );
     }
 
-    // Fetch attendees and event
+    // Fetch attendees
     const { data: attendees, error: attendeeError } = await supabase
       .from("attendees")
-      .select("id, personal_name, last_name, email, reference_id")
+      .select("*, events(*)")
       .in("id", attendeeIds);
 
-    const { data: event, error: eventError } = await supabase
-      .from("events")
-      .select("name")
-      .eq("id", eventId)
-      .single();
-
-    if (attendeeError || eventError || !attendees || !event) {
+    if (attendeeError || !attendees) {
       return NextResponse.json(
-        { error: "Failed to fetch data" },
+        { error: "Failed to fetch attendees" },
         { status: 500 }
       );
     }
 
     // Check rate limit
-    const rateLimitCheck = await canSendEmailsToday("evaluation", attendees.length);
+    const rateLimitCheck = await canSendEmailsToday("certificate", attendees.length);
 
     // Prepare queue items
     const queueItems = attendees.map(a => ({
       attendee_id: a.id,
       email: a.email,
-      type: "evaluation" as const,
+      type: "certificate" as const,
       payload: {
-        eventId,
-        eventName: event.name,
         referenceId: a.reference_id,
-        name: `${a.personal_name} ${a.last_name}`,
+        templateType,
+        eventId: a.event_id,
       },
     }));
 
     // Add to queue and get scheduling info
     const scheduleResult = await EmailQueueManager.addToQueue(queueItems);
 
-    // Send immediate emails
+    // Send immediate certificates
     const successful: any[] = [];
     const failed: any[] = [];
 
@@ -76,46 +73,64 @@ export async function POST(req: Request) {
 
     for (const attendee of immediateAttendees) {
       try {
-        const evaluationLink = `${process.env.NEXT_PUBLIC_SITE_URL}/evaluation/${attendee.reference_id}`;
+        // Generate PDF (use existing logic)
+        const event = attendee.events;
+        const firstName = attendee.personal_name.toUpperCase();
+        const lastName = attendee.last_name.toUpperCase();
+        const fullName = `${firstName} ${lastName}`;
 
+        // Generate certificate PDF here (copy from existing route)
+        // const certificatePDF = await generateCertificatePDF(...)
+
+        // Send email
         await transporter.sendMail({
           from: '"Petros" <no-reply@petros-global.com>',
           to: attendee.email,
-          subject: `Evaluation Request - ${event.name}`,
+          subject: `Certificate - ${event.name}`,
           html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h2>Hello ${attendee.personal_name} ${attendee.last_name},</h2>
-              <p>Thank you for attending <strong>${event.name}</strong>!</p>
-              <p>Please take a moment to complete our evaluation form:</p>
-              <a href="${evaluationLink}" 
-                 style="display: inline-block; padding: 12px 24px; background-color: #0e026aff; 
-                        color: white; text-decoration: none; border-radius: 5px; margin: 20px 0;">
-                Complete Evaluation
-              </a>
-              <p>Best regards,<br/>Petrosphere Team</p>
+            <div style="font-family: Arial, sans-serif;">
+              <h2>Congratulations, ${firstName} ${lastName}!</h2>
+              <p>Please find your certificate attached.</p>
             </div>
           `,
+          attachments: [
+            {
+              filename: `Certificate_${fullName.replace(/\s+/g, "_")}.pdf`,
+              content: Buffer.from([]), // certificatePDF,
+              contentType: "application/pdf",
+            },
+          ],
         });
 
-        // Mark as sent in attendees table
+        // Update certificate_sent
+        const currentCerts = attendee.certificate_sent || [];
         await supabase
           .from("attendees")
-          .update({ hassentevaluation: true })
+          .update({
+            certificate_sent: [
+              ...currentCerts,
+              {
+                type: templateType,
+                sent_at: new Date().toISOString(),
+                sent_to: attendee.email,
+              },
+            ],
+          })
           .eq("id", attendee.id);
 
-        // Add to email_queue for tracking
+        // Track in queue
         await supabase.from("email_queue").insert({
           attendee_id: attendee.id,
           email: attendee.email,
-          type: "evaluation",
-          payload: { eventId, referenceId: attendee.reference_id },
+          type: "certificate",
+          payload: { templateType, referenceId: attendee.reference_id },
           status: "sent",
           last_attempt_at: new Date().toISOString(),
         });
 
         successful.push({
           id: attendee.id,
-          name: `${attendee.personal_name} ${attendee.last_name}`,
+          name: fullName,
           email: attendee.email,
         });
       } catch (error: any) {
@@ -137,11 +152,10 @@ export async function POST(req: Request) {
       },
       rateLimitInfo: {
         message: rateLimitCheck.message,
-        used: rateLimitCheck.available,
       },
     });
   } catch (error: any) {
-    console.error("Send evaluations error:", error);
+    console.error("Send certificates error:", error);
     return NextResponse.json(
       { error: error.message },
       { status: 500 }

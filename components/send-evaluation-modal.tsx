@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { CheckCircle2, XCircle, Loader2, Clock, TrendingUp, Users, Filter } from "lucide-react"
+import { CheckCircle2, XCircle, Loader2, Clock, TrendingUp, Users, Filter, Calendar, Mail, AlertTriangle } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -14,6 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Badge } from "@/components/ui/badge"
 
 interface SendEvaluationsModalProps {
   eventId: number
@@ -25,6 +26,12 @@ interface SendEvaluationsModalProps {
 interface SendResult {
   successful: Array<{ id: number; name: string; email: string }>
   failed: Array<{ id: number; name: string; email: string; error: string }>
+}
+
+interface QueueInfo {
+  immediate: number
+  queued: number
+  scheduledDates: string[]
 }
 
 interface Attendee {
@@ -51,11 +58,11 @@ export default function SendEvaluationsModal({
   const [sending, setSending] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [result, setResult] = useState<SendResult | null>(null)
+  const [queueInfo, setQueueInfo] = useState<QueueInfo | null>(null)
   const [showOnlyAttendees, setShowOnlyAttendees] = useState(false)
   const [hideAlreadySent, setHideAlreadySent] = useState(false)
   const [hideCompleted, setHideCompleted] = useState(false)
 
-  // Fetch attendees
   useEffect(() => {
     if (!open) return
     const fetchAttendees = async () => {
@@ -71,15 +78,14 @@ export default function SendEvaluationsModal({
     }
     fetchAttendees()
     setResult(null)
+    setQueueInfo(null)
   }, [eventId, open, supabase])
 
-  // Helper for days present
   const countDaysPresent = (attendance: Record<string, boolean> | null | undefined) => {
     if (!attendance) return 0
     return Object.values(attendance).filter(Boolean).length
   }
 
-  // Filter logic
   const filteredAttendees = attendees
     .filter(a => {
       const fullName = `${a.last_name || ""}, ${a.personal_name || ""}`.toLowerCase()
@@ -103,7 +109,6 @@ export default function SendEvaluationsModal({
       return true
     })
 
-  // Select toggles
   const toggleSelectAll = () => {
     const filteredIds = filteredAttendees.map(a => a.id)
     if (filteredIds.every(id => selectedIds.includes(id))) {
@@ -119,16 +124,12 @@ export default function SendEvaluationsModal({
     )
   }
 
-  // Handle row click - toggle selection
   const handleRowClick = (id: number, e: React.MouseEvent) => {
-    // Prevent toggle if clicking on the checkbox itself
     const target = e.target as HTMLInputElement
     if (target.type === 'checkbox') return
-    
     toggleSelect(id)
   }
 
-  // Email sending
   const sendEmails = async () => {
     if (!selectedIds.length) {
       alert("Please select at least one attendee.")
@@ -137,6 +138,7 @@ export default function SendEvaluationsModal({
 
     setSending(true)
     setResult(null)
+    setQueueInfo(null)
 
     const res = await fetch("/api/send-evaluations", {
       method: "POST",
@@ -147,17 +149,23 @@ export default function SendEvaluationsModal({
     const data = await res.json()
     setSending(false)
 
-    if (res.ok) setResult(data.result)
-    else alert(`❌ Error: ${data.error || "Failed to send emails."}`)
+    if (res.ok) {
+      setResult(data.result)
+      setQueueInfo(data.queue)
+      // Clear selections after successful send
+      setSelectedIds([])
+    } else {
+      alert(`❌ Error: ${data.error || "Failed to send emails."}`)
+    }
   }
 
   const handleClose = () => {
     setSelectedIds([])
     setResult(null)
+    setQueueInfo(null)
     onClose()
   }
 
-  // Badge helper
   const getPaymentStatusBadge = (status?: string) => {
     const statusValue = status || "Pending"
     switch (statusValue) {
@@ -188,13 +196,12 @@ export default function SendEvaluationsModal({
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-6xl max-h-[80vh] flex flex-col rounded-xl bg-card shadow-lg" showCloseButton={false}>
-        <DialogHeader className=" pb-2 ">
+        <DialogHeader className="pb-2">
           <div className="flex justify-between items-center">
-            <DialogTitle className="text-lg font-bold ">
+            <DialogTitle className="text-lg font-bold">
               Send Evaluations
             </DialogTitle>
 
-            {/* Filter Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -246,19 +253,55 @@ export default function SendEvaluationsModal({
         {loading ? (
           <p className="text-center py-6 text-gray-500">Loading attendees...</p>
         ) : result ? (
-          // ✅ Results View
           <div className="flex flex-col gap-4 overflow-auto bg-card">
-            <div className="space-y-3">
+            {/* Queue Information */}
+            {queueInfo && queueInfo.queued > 0 && (
+              <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
+                <AlertTriangle className="h-4 w-4 text-blue-600" />
+                <AlertDescription>
+                  <div className="space-y-2">
+                    <div className="font-semibold text-blue-800 dark:text-blue-100">
+                      ⏰ Rate Limit Information
+                    </div>
+                    <div className="text-sm text-blue-700 dark:text-blue-200 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-4 w-4" />
+                        <span>Sent immediately: <strong>{queueInfo.immediate}</strong></span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4" />
+                        <span>Queued for later: <strong>{queueInfo.queued}</strong></span>
+                      </div>
+                      {queueInfo.scheduledDates.length > 0 && (
+                        <div className="mt-2 pl-6">
+                          <p className="text-xs font-medium mb-1">Scheduled dates:</p>
+                          <div className="flex flex-wrap gap-1">
+                            {queueInfo.scheduledDates.map(date => (
+                              <Badge key={date} variant="outline" className="text-xs">
+                                {new Date(date).toLocaleDateString()}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Results */}
+            <div className="space-y-3 max-h-96 overflow-y-auto">
               {result.successful.length > 0 && (
-                <Alert className="border-green-200 bg-green-50">
+                <Alert className="border-green-200 bg-green-50 dark:bg-green-950/20">
                   <CheckCircle2 className="h-4 w-4 text-green-600" />
                   <AlertDescription>
-                    <div className="font-semibold text-green-800 mb-2">
-                      Successfully sent to {result.successful.length} attendee(s)
+                    <div className="font-semibold text-green-800 dark:text-green-100 mb-2">
+                      ✅ Successfully sent to {result.successful.length} attendee(s)
                     </div>
                     <div className="max-h-40 overflow-y-auto space-y-1">
                       {result.successful.map(item => (
-                        <div key={item.id} className="text-sm text-green-700">
+                        <div key={item.id} className="text-sm text-green-700 dark:text-green-200">
                           • {item.name} ({item.email})
                         </div>
                       ))}
@@ -267,19 +310,19 @@ export default function SendEvaluationsModal({
                 </Alert>
               )}
               {result.failed.length > 0 && (
-                <Alert className="border-red-200 bg-red-50">
+                <Alert className="border-red-200 bg-red-50 dark:bg-red-950/20">
                   <XCircle className="h-4 w-4 text-red-600" />
                   <AlertDescription>
-                    <div className="font-semibold text-red-800 mb-2">
+                    <div className="font-semibold text-red-800 dark:text-red-100 mb-2">
                       ❌ Failed to send to {result.failed.length} attendee(s)
                     </div>
                     <div className="max-h-40 overflow-y-auto space-y-2">
                       {result.failed.map(item => (
                         <div key={item.id} className="text-sm">
-                          <div className="font-medium text-red-700">
+                          <div className="font-medium text-red-700 dark:text-red-200">
                             • {item.name} ({item.email})
                           </div>
-                          <div className="text-red-600 ml-3 text-xs">
+                          <div className="text-red-600 dark:text-red-300 ml-3 text-xs">
                             Reason: {item.error}
                           </div>
                         </div>
@@ -294,7 +337,6 @@ export default function SendEvaluationsModal({
             </div>
           </div>
         ) : (
-          // ✅ Main Table View
           <div className="flex flex-col h-full min-h-0 bg-card">
             <div className="mb-4">
               <Input
@@ -307,7 +349,7 @@ export default function SendEvaluationsModal({
               />
             </div>
 
-            <div className="flex items-center gap-2  pb-3 mb-2">
+            <div className="flex items-center gap-2 pb-3 mb-2">
               <input
                 type="checkbox"
                 checked={
@@ -318,15 +360,25 @@ export default function SendEvaluationsModal({
                 disabled={sending}
                 className="accent-[#1e1b4b]"
               />
-              <span className="font-medium ">Select All</span>
+              <span className="font-medium">Select All</span>
               <span className="text-sm ml-auto">
                 {selectedIds.length} selected
               </span>
             </div>
 
-            {/* Table */}
+            {/* Rate Limit Warning */}
+            {selectedIds.length > 40 && (
+              <Alert className="mb-3 border-amber-200 bg-amber-50 dark:bg-amber-950/20">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="text-sm text-amber-800 dark:text-amber-100">
+                  ⚠️ You selected {selectedIds.length} attendees. Only 40 evaluations can be sent today. 
+                  The remaining {selectedIds.length - 40} will be automatically queued for tomorrow.
+                </AlertDescription>
+              </Alert>
+            )}
+
             <div className="flex-1 overflow-y-auto border border-gray-400 rounded-lg min-h-0">
-              <div className="sticky top-0 bg-card border-b border-gray-200 font-semibold text-sm ">
+              <div className="sticky top-0 bg-card border-b border-gray-200 font-semibold text-sm">
                 <div className="grid grid-cols-[auto_minmax(200px,2fr)_minmax(200px,300px)_minmax(120px,150px)_60px_60px_90px] gap-3 px-4 py-3">
                   <div className="flex items-center">#</div>
                   <div className="flex items-center">Name</div>
@@ -350,7 +402,7 @@ export default function SendEvaluationsModal({
                       onClick={(e) => !sending && handleRowClick(a.id, e)}
                       className={`grid grid-cols-[auto_minmax(160px,2fr)_minmax(180px,280px)_minmax(120px,150px)_60px_60px_90px] gap-3 px-4 py-3 items-center transition cursor-pointer ${
                         selectedIds.includes(a.id)
-                          ? 'bg-primary/10 '
+                          ? 'bg-primary/10'
                           : 'hover:bg-secondary'
                       } ${sending ? 'cursor-not-allowed opacity-50' : ''}`}
                     >
@@ -408,11 +460,11 @@ export default function SendEvaluationsModal({
 
             <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 mt-4">
               <Button variant="outline" onClick={handleClose} disabled={sending}>
-                Cancel
+                Close
               </Button>
               <Button
                 onClick={sendEmails}
-                disabled={sending}
+                disabled={sending || selectedIds.length === 0}
                 className="bg-primary text-white hover:bg-[#2c2970]"
               >
                 {sending ? (

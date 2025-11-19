@@ -1,4 +1,4 @@
-//app\api\send-direct-certificate\route.ts
+//app/api/send-direct-certificate/route.ts
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import { createClient } from "@supabase/supabase-js";
@@ -32,7 +32,6 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
     : { r: 0, g: 0, b: 0 };
 }
 
-// UPDATED: Capitalize ALL letters
 function capitalizeAllLetters(str: string): string {
   if (!str) return str;
   return str.trim().toUpperCase();
@@ -56,7 +55,6 @@ async function generateCertificatePDF(
       .eq("template_type", templateType)
       .maybeSingle();
 
-    // Get event topics
     const { data: eventData } = await supabase
       .from("events")
       .select("topics")
@@ -77,7 +75,6 @@ async function generateCertificatePDF(
     const pdfDoc = await PDFDocument.create();
     const page = pdfDoc.addPage([842, 595]);
 
-    // Load template image
     let templateImageBytes: ArrayBuffer | Buffer;
     
     if (template?.image_url) {
@@ -147,7 +144,6 @@ async function generateCertificatePDF(
         .replace(/\{\{event_date\}\}/g, eventDate)
         .replace(/\{\{event_venue\}\}/g, eventVenue);
 
-      // Replace topic placeholders
       if (topics && Array.isArray(topics)) {
         const allTopics = topics.map((t: any) => t.topic || t).filter(Boolean);
         text = text
@@ -268,7 +264,6 @@ export async function POST(req: Request) {
     }
 
     const event = attendee.events;
-    // UPDATED: Capitalize ALL letters
     const firstName = capitalizeAllLetters(attendee.personal_name);
     const lastName = capitalizeAllLetters(attendee.last_name);
     const fullName = `${firstName} ${lastName}`;
@@ -329,6 +324,27 @@ export async function POST(req: Request) {
     await transporter.sendMail(mailOptions);
 
     console.log(`Certificate sent successfully to: ${email}`);
+
+    // ✅ NEW: Update certificate_sent array in database
+    const currentCertificates = attendee.certificate_sent || [];
+    const updatedCertificates = [
+      ...currentCertificates,
+      {
+        type: templateType,
+        sent_at: new Date().toISOString(),
+        sent_to: email
+      }
+    ];
+
+    const { error: updateError } = await supabase
+      .from("attendees")
+      .update({ certificate_sent: updatedCertificates })
+      .eq("id", attendee.id);
+
+    if (updateError) {
+      console.error("Error updating certificate_sent:", updateError);
+      // Don't fail the request since email was sent successfully
+    }
 
     return NextResponse.json({
       success: true,

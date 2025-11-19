@@ -6,10 +6,17 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Search, Send, Loader2, Award, Trophy, CalendarCheck, Users, Mic, UserCircle, CheckCircle2, XCircle } from "lucide-react"
+import { Search, Send, Loader2, Award, Trophy, CalendarCheck, Users, Mic, UserCircle, CheckCircle2, XCircle, Mail } from "lucide-react"
 import { supabase } from "@/lib/supabase-client"
 import { Progress } from "@/components/ui/progress"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
+
+interface CertificateSent {
+  type: string
+  sent_at: string
+  sent_to: string
+}
 
 interface Attendee {
   id: number
@@ -20,6 +27,7 @@ interface Attendee {
   reference_id: string
   roles: string[] | null
   attendance: { date: number; status: string }[] | null
+  certificate_sent: CertificateSent[] | null
 }
 
 interface SendDirectCertificateModalProps {
@@ -78,7 +86,6 @@ export default function SendDirectCertificateModal({
   const [sendResults, setSendResults] = useState<SendResult[]>([])
   const [showResults, setShowResults] = useState(false)
 
-  // Fetch available templates and attendees when modal opens
   useEffect(() => {
     if (open) {
       fetchAvailableTemplates()
@@ -109,7 +116,6 @@ export default function SendDirectCertificateModal({
     
     setAvailableTemplates(templates)
     
-    // Select first available template
     if (templates.size > 0) {
       setSelectedTemplate(Array.from(templates)[0])
     }
@@ -120,7 +126,7 @@ export default function SendDirectCertificateModal({
     try {
       const { data, error } = await supabase
         .from("attendees")
-        .select("id, personal_name, middle_name, last_name, email, reference_id, roles, attendance")
+        .select("id, personal_name, middle_name, last_name, email, reference_id, roles, attendance, certificate_sent")
         .eq("event_id", eventId)
         .order("last_name", { ascending: true })
 
@@ -134,7 +140,6 @@ export default function SendDirectCertificateModal({
     }
   }
 
-  // Filter attendees based on search
   const filteredAttendees = useMemo(() => {
     if (!searchQuery.trim()) return attendees
 
@@ -146,11 +151,9 @@ export default function SendDirectCertificateModal({
     })
   }, [attendees, searchQuery])
 
-  // Check if all filtered attendees are selected
   const allSelected = filteredAttendees.length > 0 && 
     filteredAttendees.every((a) => selectedIds.has(a.id))
 
-  // Toggle select all
   const toggleSelectAll = () => {
     if (allSelected) {
       const newSelected = new Set(selectedIds)
@@ -163,7 +166,6 @@ export default function SendDirectCertificateModal({
     }
   }
 
-  // Toggle individual selection
   const toggleSelection = (id: number) => {
     const newSelected = new Set(selectedIds)
     if (newSelected.has(id)) {
@@ -174,7 +176,6 @@ export default function SendDirectCertificateModal({
     setSelectedIds(newSelected)
   }
 
-  // Get attendance summary for an attendee
   const getAttendanceSummary = (attendance: { date: number; status: string }[] | null) => {
     if (!attendance || !Array.isArray(attendance)) {
       return { present: 0, total: scheduleDates.length }
@@ -184,7 +185,6 @@ export default function SendDirectCertificateModal({
     return { present: presentCount, total: totalDays }
   }
 
-  // Get role icons
   const getRoleIcon = (role: string) => {
     switch (role) {
       case "Organizer":
@@ -198,7 +198,23 @@ export default function SendDirectCertificateModal({
     }
   }
 
-  // Send certificates
+  // ✅ NEW: Check if certificate already sent
+  const hasCertificateSent = (attendee: Attendee, templateType: TemplateType): boolean => {
+    if (!attendee.certificate_sent || !Array.isArray(attendee.certificate_sent)) {
+      return false
+    }
+    return attendee.certificate_sent.some(cert => cert.type === templateType)
+  }
+
+  // ✅ NEW: Get last sent date
+  const getLastSentDate = (attendee: Attendee, templateType: TemplateType): string | null => {
+    if (!attendee.certificate_sent || !Array.isArray(attendee.certificate_sent)) {
+      return null
+    }
+    const cert = attendee.certificate_sent.find(c => c.type === templateType)
+    return cert ? new Date(cert.sent_at).toLocaleDateString() : null
+  }
+
   const handleSend = async () => {
     if (selectedIds.size === 0) {
       alert("Please select at least one attendee")
@@ -262,6 +278,12 @@ export default function SendDirectCertificateModal({
 
     setSending(false)
     setShowResults(true)
+    
+    // ✅ Refresh attendee list to show updated certificate status
+    await fetchAttendees()
+    
+    // ✅ Clear selections after sending
+    setSelectedIds(new Set())
   }
 
   const successCount = sendResults.filter(r => r.status === "success").length
@@ -385,6 +407,8 @@ export default function SendDirectCertificateModal({
                 filteredAttendees.map((attendee) => {
                   const attendanceSummary = getAttendanceSummary(attendee.attendance)
                   const fullName = `${attendee.personal_name} ${attendee.middle_name || ""} ${attendee.last_name}`.trim()
+                  const alreadySent = hasCertificateSent(attendee, selectedTemplate)
+                  const lastSent = getLastSentDate(attendee, selectedTemplate)
                   
                   return (
                     <div
@@ -402,8 +426,27 @@ export default function SendDirectCertificateModal({
                         disabled={sending}
                       />
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{fullName}</p>
-                        <p className="text-sm text-muted-foreground truncate">{attendee.email}</p>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">{fullName}</p>
+                            <p className="text-sm text-muted-foreground truncate">{attendee.email}</p>
+                          </div>
+                          
+                          {/* ✅ NEW: Certificate Status Badge */}
+                          {alreadySent && (
+                            <Badge variant="outline" className="flex items-center gap-1 text-xs bg-green-50 text-green-700 border-green-200">
+                              <Mail className="h-3 w-3" />
+                              Sent
+                            </Badge>
+                          )}
+                        </div>
+                        
+                        {/* ✅ NEW: Show last sent date */}
+                        {lastSent && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Last sent: {lastSent}
+                          </p>
+                        )}
                         
                         {/* Roles */}
                         {attendee.roles && Array.isArray(attendee.roles) && attendee.roles.length > 0 && (
@@ -462,7 +505,7 @@ export default function SendDirectCertificateModal({
 
         {/* Results */}
         {showResults && sendResults.length > 0 && (
-          <div className="space-y-3 pt-4 border-t max-h-60 overflow-y-auto">
+          <div className="space-y-3 pt-4 border-t">
             <div className="flex items-center justify-between">
               <h4 className="font-semibold text-sm">Send Results</h4>
               <div className="flex gap-3 text-xs">
@@ -471,14 +514,14 @@ export default function SendDirectCertificateModal({
               </div>
             </div>
             
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
               {sendResults.map((result, idx) => (
                 <div 
                   key={idx} 
-                  className={`flex items-start gap-2 text-sm p-2 rounded ${
+                  className={`flex items-start gap-2 text-sm p-3 rounded-lg ${
                     result.status === "success" 
-                      ? "bg-card border-l-2 border-green-500" 
-                      : "bg-red-50 border-l-2 border-red-500"
+                      ? "bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800" 
+                      : "bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800"
                   }`}
                 >
                   <div className="flex-shrink-0 mt-0.5">
@@ -503,26 +546,24 @@ export default function SendDirectCertificateModal({
 
         <DialogFooter className="pt-4 border-t">
           <Button variant="outline" onClick={onClose} disabled={sending}>
-            {showResults ? "Close" : "Cancel"}
+            Close
           </Button>
-          {!showResults && (
-            <Button 
-              onClick={handleSend} 
-              disabled={selectedIds.size === 0 || sending || availableTemplates.size === 0}
-            >
-              {sending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Sending...
-                </>
-              ) : (
-                <>
-                  <Send className="mr-2 h-4 w-4" />
-                  Send {selectedIds.size > 0 ? `(${selectedIds.size})` : ""}
-                </>
-              )}
-            </Button>
-          )}
+          <Button 
+            onClick={handleSend} 
+            disabled={selectedIds.size === 0 || sending || availableTemplates.size === 0}
+          >
+            {sending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Sending...
+              </>
+            ) : (
+              <>
+                <Send className="mr-2 h-4 w-4" />
+                Send {selectedIds.size > 0 ? `(${selectedIds.size})` : ""}
+              </>
+            )}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

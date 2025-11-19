@@ -1,3 +1,4 @@
+// app/evaluation/[reference_id]/page.tsx
 "use client"
 
 import { useEffect, useState } from "react"
@@ -7,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
-import { Loader2 } from "lucide-react"
+import { Loader2, RefreshCw } from "lucide-react"
 
 const ratingQuestions = [
   "The session delivered the information I expected to receive.",
@@ -35,6 +36,7 @@ export default function EvaluationPage() {
   const [event, setEvent] = useState<any>(null)
   const [error, setError] = useState("")
   const [submitted, setSubmitted] = useState(false)
+  const [isReevaluation, setIsReevaluation] = useState(false)
 
   // Form state
   const [overallRating, setOverallRating] = useState("")
@@ -50,7 +52,7 @@ export default function EvaluationPage() {
       try {
         const { data: attendeeData, error: attendeeError } = await supabase
           .from("attendees")
-          .select("*, events(name, start_date, end_date, venue)")
+          .select("*, events(name, start_date, end_date, venue, allow_reevaluation)")
           .eq("reference_id", referenceId)
           .maybeSingle()
 
@@ -66,10 +68,18 @@ export default function EvaluationPage() {
           return
         }
 
-        if (attendeeData.hasevaluation) {
+        // ✅ Check if re-evaluation is allowed
+        const allowReevaluation = attendeeData.events?.allow_reevaluation || false
+
+        if (attendeeData.hasevaluation && !allowReevaluation) {
           setError("You have already submitted an evaluation for this event. Thank you!")
           setLoading(false)
           return
+        }
+
+        // ✅ If they already completed evaluation but re-evaluation is allowed
+        if (attendeeData.hasevaluation && allowReevaluation) {
+          setIsReevaluation(true)
         }
 
         setAttendee(attendeeData)
@@ -90,13 +100,12 @@ export default function EvaluationPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Validation - Overall Rating
+    // Validation
     if (!overallRating) {
       alert("Please rate the overall event")
       return
     }
 
-    // Validation - Rating Questions
     for (let i = 0; i < ratingQuestions.length; i++) {
       if (!ratings[i]) {
         alert(`Please answer question: "${ratingQuestions[i]}"`)
@@ -104,7 +113,6 @@ export default function EvaluationPage() {
       }
     }
 
-    // Validation - Open-ended questions (all required)
     if (!likeMost.trim()) {
       alert("Please answer: What did you like MOST about the event?")
       return
@@ -125,7 +133,6 @@ export default function EvaluationPage() {
       return
     }
 
-    // Validation - Mailing List
     if (!mailingList) {
       alert("Please select if you want to be included in the mailing list")
       return
@@ -134,14 +141,15 @@ export default function EvaluationPage() {
     setSubmitting(true)
 
     try {
-      // Prepare answers object
       const answers: any = {
         rate: overallRating,
         "like-most": likeMost,
         "like-least": likeLeast,
         suggest: futureTopic,
         comments: additionalComments,
-        interested: mailingList === "yes" ? "yes" : "no"
+        interested: mailingList === "yes" ? "yes" : "no",
+        is_reevaluation: isReevaluation, // ✅ Track if this is a re-evaluation
+        submitted_at: new Date().toISOString()
       }
 
       ratingQuestions.forEach((_, index) => {
@@ -158,7 +166,7 @@ export default function EvaluationPage() {
 
       if (evalError) throw evalError
 
-      // Update attendee to mark evaluation as complete
+      // ✅ Update attendee - always set to true (even for re-evaluation)
       const { error: updateError } = await supabase
         .from("attendees")
         .update({ hasevaluation: true })
@@ -166,11 +174,10 @@ export default function EvaluationPage() {
 
       if (updateError) throw updateError
 
-      // Success - now send certificate
       setSubmitted(true)
       setSendingCertificate(true)
 
-      // Send certificate via API
+      // Send certificate
       try {
         const response = await fetch("/api/send-certificate", {
           method: "POST",
@@ -243,7 +250,10 @@ export default function EvaluationPage() {
               </h2>
               
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                You have successfully submitted your evaluation!
+                {isReevaluation 
+                  ? "You have successfully submitted your re-evaluation!"
+                  : "You have successfully submitted your evaluation!"
+                }
               </p>
               
               {sendingCertificate ? (
@@ -270,11 +280,31 @@ export default function EvaluationPage() {
       <form onSubmit={handleSubmit} className="max-w-3xl mx-auto space-y-4 sm:space-y-6">
         {/* Header */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 sm:p-8 border dark:border-gray-700">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-100 mb-2">Event Evaluation Form</h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            {attendee?.personal_name} {attendee?.last_name}
-          </p>
-          <p className="text-base sm:text-lg font-medium text-gray-700 dark:text-gray-300 mt-4">{event?.name}</p>
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-100 mb-2">
+                Event Evaluation Form
+                {isReevaluation && (
+                  <span className="ml-3 inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200">
+                    <RefreshCw className="h-4 w-4" />
+                    Re-evaluation
+                  </span>
+                )}
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400">
+                {attendee?.personal_name} {attendee?.last_name}
+              </p>
+              <p className="text-base sm:text-lg font-medium text-gray-700 dark:text-gray-300 mt-4">{event?.name}</p>
+            </div>
+          </div>
+          
+          {isReevaluation && (
+            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <p className="text-sm text-blue-800 dark:text-blue-200">
+                ℹ️ You are retaking this evaluation. Your new responses will replace the previous submission.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Overall Rating */}
@@ -486,6 +516,8 @@ export default function EvaluationPage() {
                 <Loader2 className="h-5 w-5 animate-spin mr-2" />
                 Submitting...
               </>
+            ) : isReevaluation ? (
+              "Resubmit Evaluation"
             ) : (
               "Submit"
             )}
