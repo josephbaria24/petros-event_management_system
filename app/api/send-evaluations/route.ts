@@ -2,7 +2,6 @@
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import { createClient } from "@supabase/supabase-js";
-import { EmailQueueManager, canSendEmailsToday } from "@/lib/email-queue";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -30,7 +29,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // Fetch attendees and event
+    // Fetch attendees
     const { data: attendees, error: attendeeError } = await supabase
       .from("attendees")
       .select("id, personal_name, last_name, email, reference_id")
@@ -49,32 +48,11 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check rate limit
-    const rateLimitCheck = await canSendEmailsToday("evaluation", attendees.length);
-
-    // Prepare queue items
-    const queueItems = attendees.map(a => ({
-      attendee_id: a.id,
-      email: a.email,
-      type: "evaluation" as const,
-      payload: {
-        eventId,
-        eventName: event.name,
-        referenceId: a.reference_id,
-        name: `${a.personal_name} ${a.last_name}`,
-      },
-    }));
-
-    // Add to queue and get scheduling info
-    const scheduleResult = await EmailQueueManager.addToQueue(queueItems);
-
-    // Send immediate emails
+    // ✅ Unlimited email mode: Send all immediately
     const successful: any[] = [];
     const failed: any[] = [];
 
-    const immediateAttendees = attendees.slice(0, scheduleResult.immediate);
-
-    for (const attendee of immediateAttendees) {
+    for (const attendee of attendees) {
       try {
         const evaluationLink = `${process.env.NEXT_PUBLIC_SITE_URL}/evaluation/${attendee.reference_id}`;
 
@@ -88,8 +66,8 @@ export async function POST(req: Request) {
               <p>Thank you for attending <strong>${event.name}</strong>!</p>
               <p>Please take a moment to complete our evaluation form:</p>
               <a href="${evaluationLink}" 
-                 style="display: inline-block; padding: 12px 24px; background-color: #0e026aff; 
-                        color: white; text-decoration: none; border-radius: 5px; margin: 20px 0;">
+                style="display: inline-block; padding: 12px 24px; background-color: #0e026aff; 
+                       color: white; text-decoration: none; border-radius: 5px; margin: 20px 0;">
                 Complete Evaluation
               </a>
               <p>Best regards,<br/>Petrosphere Team</p>
@@ -97,21 +75,11 @@ export async function POST(req: Request) {
           `,
         });
 
-        // Mark as sent in attendees table
+        // Mark as sent
         await supabase
           .from("attendees")
           .update({ hassentevaluation: true })
           .eq("id", attendee.id);
-
-        // Add to email_queue for tracking
-        await supabase.from("email_queue").insert({
-          attendee_id: attendee.id,
-          email: attendee.email,
-          type: "evaluation",
-          payload: { eventId, referenceId: attendee.reference_id },
-          status: "sent",
-          last_attempt_at: new Date().toISOString(),
-        });
 
         successful.push({
           id: attendee.id,
@@ -130,15 +98,8 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       result: { successful, failed },
-      queue: {
-        immediate: scheduleResult.immediate,
-        queued: scheduleResult.queued,
-        scheduledDates: scheduleResult.scheduledDates,
-      },
-      rateLimitInfo: {
-        message: rateLimitCheck.message,
-        used: rateLimitCheck.available,
-      },
+      queue: null, // no more queue
+      rateLimitInfo: null, // no more rate limits
     });
   } catch (error: any) {
     console.error("Send evaluations error:", error);
