@@ -6,6 +6,36 @@ import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import fs from "fs/promises";
 import path from "path";
 
+
+function wrapText(
+  text: string,
+  font: any,
+  fontSize: number,
+  maxWidth: number
+): string[] {
+  const words = text.split(" ");
+  const lines: string[] = [];
+  let currentLine = "";
+
+  for (const word of words) {
+    const testLine = currentLine ? currentLine + " " + word : word;
+    const width = font.widthOfTextAtSize(testLine, fontSize);
+
+    if (width > maxWidth) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = testLine;
+    }
+  }
+
+  if (currentLine) lines.push(currentLine);
+
+  return lines;
+}
+
+
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -189,13 +219,36 @@ async function generateCertificatePDF(
 
       const pdfY = 595 - field.y;
 
-      page.drawText(text, {
-        x: x,
-        y: pdfY,
-        size: field.fontSize,
-        font: font,
-        color: rgb(color.r, color.g, color.b),
-      });
+     // MAX WIDTH for text field (you can adjust)
+        const MAX_TEXT_WIDTH = 500;
+
+        // Split into lines if too long
+        const lines = wrapText(text, font, field.fontSize, MAX_TEXT_WIDTH);
+
+        let lineY = pdfY;
+        const lineHeight = field.fontSize + 4;
+
+        for (const line of lines) {
+          const lineWidth = font.widthOfTextAtSize(line, field.fontSize);
+          let drawX = field.x;
+
+          if (field.align === "center") {
+            drawX = field.x - lineWidth / 2;
+          } else if (field.align === "right") {
+            drawX = field.x - lineWidth;
+          }
+
+          page.drawText(line, {
+            x: drawX,
+            y: lineY,
+            size: field.fontSize,
+            font: font,
+            color: rgb(color.r, color.g, color.b),
+          });
+
+          lineY -= lineHeight; // Move down for next line
+        }
+
     }
 
     const pdfBytes = await pdfDoc.save();
