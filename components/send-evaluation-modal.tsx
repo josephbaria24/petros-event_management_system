@@ -151,7 +151,6 @@ export default function SendEvaluationsModal({
 
     if (res.ok) {
       setResult(data.result)
-      setQueueInfo(data.queue)
       // Clear selections after successful send
       setSelectedIds([])
     } else {
@@ -255,7 +254,7 @@ export default function SendEvaluationsModal({
         ) : result ? (
           <div className="flex flex-col gap-4 overflow-auto bg-card">
             {/* Queue Information */}
-            {queueInfo && queueInfo.queued > 0 && (
+            {/* {queueInfo && queueInfo.queued > 0 && (
               <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
                 <AlertTriangle className="h-4 w-4 text-blue-600" />
                 <AlertDescription>
@@ -288,7 +287,7 @@ export default function SendEvaluationsModal({
                   </div>
                 </AlertDescription>
               </Alert>
-            )}
+            )} */}
 
             {/* Results */}
             <div className="space-y-3 max-h-96 overflow-y-auto">
@@ -367,7 +366,7 @@ export default function SendEvaluationsModal({
             </div>
 
             {/* Rate Limit Warning */}
-            {selectedIds.length > 40 && (
+            {/* {selectedIds.length > 40 && (
               <Alert className="mb-3 border-amber-200 bg-amber-50 dark:bg-amber-950/20">
                 <AlertTriangle className="h-4 w-4 text-amber-600" />
                 <AlertDescription className="text-sm text-amber-800 dark:text-amber-100">
@@ -375,7 +374,7 @@ export default function SendEvaluationsModal({
                   The remaining {selectedIds.length - 40} will be automatically queued for tomorrow.
                 </AlertDescription>
               </Alert>
-            )}
+            )} */}
 
             <div className="flex-1 overflow-y-auto border border-gray-400 rounded-lg min-h-0">
               <div className="sticky top-0 bg-card border-b border-gray-200 font-semibold text-sm">
