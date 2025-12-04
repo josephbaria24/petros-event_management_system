@@ -21,6 +21,33 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+// ✅ ADD: Text wrapping function (was missing!)
+function wrapText(
+  text: string,
+  font: any,
+  fontSize: number,
+  maxWidth: number
+): string[] {
+  const words = text.split(" ");
+  const lines: string[] = [];
+  let currentLine = "";
+
+  for (const word of words) {
+    const testLine = currentLine ? currentLine + " " + word : word;
+    const width = font.widthOfTextAtSize(testLine, fontSize);
+
+    if (width > maxWidth) {
+      if (currentLine) lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = testLine;
+    }
+  }
+
+  if (currentLine) lines.push(currentLine);
+  return lines;
+}
+
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   return result
@@ -72,23 +99,39 @@ async function generateCertificatePDF(
       throw new Error(`${templateType} template not configured for this event`);
     }
 
+    // ✅ FIX: Create new PDF document for each certificate
     const pdfDoc = await PDFDocument.create();
     const page = pdfDoc.addPage([842, 595]);
 
     let templateImageBytes: ArrayBuffer | Buffer;
     
     if (template?.image_url) {
+      console.log("Fetching template image...");
       const response = await fetch(template.image_url);
       if (!response.ok) {
         throw new Error(`Failed to fetch template image: ${response.statusText}`);
       }
       templateImageBytes = await response.arrayBuffer();
+      
+      // ✅ FIX: Validate image data
+      if (!templateImageBytes || templateImageBytes.byteLength === 0) {
+        throw new Error("Template image is empty or corrupted");
+      }
     } else {
       const templatePath = path.join(process.cwd(), "public", "certificate-template.png");
       templateImageBytes = await fs.readFile(templatePath);
     }
 
-    const templateImage = await pdfDoc.embedPng(templateImageBytes);
+    // ✅ FIX: Try-catch for image embedding
+    let templateImage;
+    try {
+      templateImage = await pdfDoc.embedPng(templateImageBytes);
+    } catch (error) {
+      console.error("Failed to embed PNG, trying as JPEG:", error);
+      // Fallback to JPEG if PNG fails
+      templateImage = await pdfDoc.embedJpg(templateImageBytes);
+    }
+
     page.drawImage(templateImage, {
       x: 0,
       y: 0,
@@ -157,28 +200,55 @@ async function generateCertificatePDF(
 
       const font = field.fontWeight === "bold" ? helveticaBold : helvetica;
       const color = hexToRgb(field.color);
-      const textWidth = font.widthOfTextAtSize(text, field.fontSize);
-
-      let x = field.x;
-      if (field.align === "center") {
-        x = field.x - textWidth / 2;
-      } else if (field.align === "right") {
-        x = field.x - textWidth;
-      }
 
       const pdfY = 595 - field.y;
 
-      page.drawText(text, {
-        x: x,
-        y: pdfY,
-        size: field.fontSize,
-        font: font,
-        color: rgb(color.r, color.g, color.b),
-      });
+      // ✅ FIX: Add text wrapping with proper max width
+      const MAX_TEXT_WIDTH = 700; // Adjusted for certificate width
+      const lines = wrapText(text, font, field.fontSize, MAX_TEXT_WIDTH);
+      const lineHeight = field.fontSize + 4;
+
+      let lineY = pdfY;
+
+      for (const line of lines) {
+        const lineWidth = font.widthOfTextAtSize(line, field.fontSize);
+        let drawX = field.x;
+
+        if (field.align === "center") {
+          drawX = field.x - lineWidth / 2;
+        } else if (field.align === "right") {
+          drawX = field.x - lineWidth;
+        }
+
+        // ✅ FIX: Validate coordinates before drawing
+        if (isNaN(drawX) || isNaN(lineY)) {
+          console.warn("Invalid coordinates, skipping line:", { drawX, lineY, line });
+          continue;
+        }
+
+        page.drawText(line, {
+          x: drawX,
+          y: lineY,
+          size: field.fontSize,
+          font: font,
+          color: rgb(color.r, color.g, color.b),
+        });
+
+        lineY -= lineHeight;
+      }
     }
 
+    // ✅ FIX: Ensure PDF is properly saved
     const pdfBytes = await pdfDoc.save();
+    
+    // ✅ FIX: Validate PDF output
+    if (!pdfBytes || pdfBytes.length === 0) {
+      throw new Error("Generated PDF is empty");
+    }
+
+    console.log(`PDF generated successfully, size: ${pdfBytes.length} bytes`);
     return Buffer.from(pdfBytes);
+    
   } catch (error) {
     console.error("Error generating PDF:", error);
     throw error;
@@ -271,14 +341,24 @@ export async function POST(req: Request) {
 
     console.log(`Generating ${templateType} certificate for: ${fullName}, Event ID: ${event.id}`);
 
-    const certificatePDF = await generateCertificatePDF(
-      fullName,
-      event.name,
-      eventDate,
-      event.venue || "Philippines",
-      event.id,
-      templateType as "participation" | "awardee" | "attendance"
-    );
+    // ✅ FIX: Wrap in try-catch for better error handling
+    let certificatePDF: Buffer;
+    try {
+      certificatePDF = await generateCertificatePDF(
+        fullName,
+        event.name,
+        eventDate,
+        event.venue || "Philippines",
+        event.id,
+        templateType as "participation" | "awardee" | "attendance"
+      );
+    } catch (pdfError: any) {
+      console.error("PDF Generation Error:", pdfError);
+      return NextResponse.json(
+        { error: "Failed to generate certificate PDF", details: pdfError.message },
+        { status: 500 }
+      );
+    }
 
     console.log("Certificate PDF generated successfully");
 
@@ -291,12 +371,12 @@ export async function POST(req: Request) {
       html: `
         <div style="font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 30px;">
           <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 10px; overflow: hidden;">
-         <div style="background-color: #0e026aff; text-align: center; padding: 20px; border: 3px solid #1e1b4b;border-radius: 10px;">
-          <img src="https://petrosphere.com.ph/wp-content/uploads/al_opt_content/IMAGE/petrosphere.com.ph/wp-content/uploads/2022/08/cropped-Petrosphere-Horizontal-Logo-white-with-clear-background-279x50.png.bv.webp?bv_host=petrosphere.com.ph" 
-               alt="Petros Logo" 
-               style="height: 60px;" />
-        </div>
-        
+            <div style="background-color: #0e026aff; text-align: center; padding: 20px; border: 3px solid #1e1b4b;border-radius: 10px;">
+              <img src="https://petrosphere.com.ph/wp-content/uploads/al_opt_content/IMAGE/petrosphere.com.ph/wp-content/uploads/2022/08/cropped-Petrosphere-Horizontal-Logo-white-with-clear-background-279x50.png.bv.webp?bv_host=petrosphere.com.ph" 
+                   alt="Petros Logo" 
+                   style="height: 60px;" />
+            </div>
+            
             <div style="padding: 30px; color: #333;">
               <h2>Congratulations, ${firstName} ${lastName}!</h2>
               <p>
@@ -321,11 +401,19 @@ export async function POST(req: Request) {
       ],
     };
 
-    await transporter.sendMail(mailOptions);
+    // ✅ FIX: Add email sending error handling
+    try {
+      await transporter.sendMail(mailOptions);
+      console.log(`Certificate sent successfully to: ${email}`);
+    } catch (emailError: any) {
+      console.error("Email sending error:", emailError);
+      return NextResponse.json(
+        { error: "Failed to send email", details: emailError.message },
+        { status: 500 }
+      );
+    }
 
-    console.log(`Certificate sent successfully to: ${email}`);
-
-    // ✅ NEW: Update certificate_sent array in database
+    // Update certificate_sent array in database
     const currentCertificates = attendee.certificate_sent || [];
     const updatedCertificates = [
       ...currentCertificates,
@@ -343,7 +431,6 @@ export async function POST(req: Request) {
 
     if (updateError) {
       console.error("Error updating certificate_sent:", updateError);
-      // Don't fail the request since email was sent successfully
     }
 
     return NextResponse.json({

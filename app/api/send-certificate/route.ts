@@ -1,4 +1,4 @@
-//app\api\send-certificate\route.ts
+//app/api/send-certificate/route.ts
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import { createClient } from "@supabase/supabase-js";
@@ -21,6 +21,33 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+// ✅ CRITICAL FIX: Add text wrapping function to prevent corruption
+function wrapText(
+  text: string,
+  font: any,
+  fontSize: number,
+  maxWidth: number
+): string[] {
+  const words = text.split(" ");
+  const lines: string[] = [];
+  let currentLine = "";
+
+  for (const word of words) {
+    const testLine = currentLine ? currentLine + " " + word : word;
+    const width = font.widthOfTextAtSize(testLine, fontSize);
+
+    if (width > maxWidth) {
+      if (currentLine) lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = testLine;
+    }
+  }
+
+  if (currentLine) lines.push(currentLine);
+  return lines;
+}
+
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   return result
@@ -32,7 +59,6 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
     : { r: 0, g: 0, b: 0 };
 }
 
-// UPDATED: Capitalize ALL letters
 function capitalizeAllLetters(str: string): string {
   if (!str) return str;
   return str.trim().toUpperCase();
@@ -47,8 +73,7 @@ async function generateCertificatePDF(
   templateType: "participation" | "awardee" | "attendance" = "participation"
 ): Promise<Buffer> {
   try {
-    // Get custom template and event details from database
-    console.log(`Fetching template for event ID: ${eventId}`);
+    console.log(`[Certificate] Fetching ${templateType} template for event ${eventId}`);
     
     const { data: template, error: templateError } = await supabase
       .from("certificate_templates")
@@ -57,7 +82,6 @@ async function generateCertificatePDF(
       .eq("template_type", templateType)
       .maybeSingle();
 
-    // Get event topics
     const { data: eventData } = await supabase
       .from("events")
       .select("topics")
@@ -67,19 +91,20 @@ async function generateCertificatePDF(
     const topics = eventData?.topics || [];
 
     if (templateError) {
-      console.error("Error fetching template:", templateError);
+      console.error("[Certificate] Template error:", templateError);
     }
 
     if (template) {
-      console.log("Template found:", {
+      console.log("[Certificate] Template found:", {
         id: template.id,
         imageUrl: template.image_url?.substring(0, 50),
         fieldsCount: template.fields?.length || 0
       });
     } else {
-      console.log("No custom template found, using defaults");
+      console.log("[Certificate] No custom template, using defaults");
     }
 
+    // ✅ Create fresh PDF document
     const pdfDoc = await PDFDocument.create();
     const page = pdfDoc.addPage([842, 595]);
 
@@ -87,23 +112,32 @@ async function generateCertificatePDF(
     let templateImageBytes: ArrayBuffer | Buffer;
     
     if (template?.image_url) {
-      console.log("Fetching custom template from:", template.image_url);
-      
+      console.log("[Certificate] Fetching custom template");
       const response = await fetch(template.image_url);
       if (!response.ok) {
-        console.error(`Failed to fetch template: ${response.status} ${response.statusText}`);
-        throw new Error(`Failed to fetch template image: ${response.statusText}`);
+        throw new Error(`Failed to fetch template: ${response.statusText}`);
       }
       templateImageBytes = await response.arrayBuffer();
-      console.log("Template image fetched successfully");
-    } else {
-      console.log("Using default template from public folder");
       
+      // ✅ Validate image data
+      if (!templateImageBytes || templateImageBytes.byteLength === 0) {
+        throw new Error("Template image is empty or corrupted");
+      }
+    } else {
+      console.log("[Certificate] Using default template");
       const templatePath = path.join(process.cwd(), "public", "certificate-template.png");
       templateImageBytes = await fs.readFile(templatePath);
     }
 
-    const templateImage = await pdfDoc.embedPng(templateImageBytes);
+    // ✅ Embed image with fallback
+    let templateImage;
+    try {
+      templateImage = await pdfDoc.embedPng(templateImageBytes);
+    } catch (pngError) {
+      console.warn("[Certificate] PNG failed, trying JPEG");
+      templateImage = await pdfDoc.embedJpg(templateImageBytes);
+    }
+
     page.drawImage(templateImage, {
       x: 0,
       y: 0,
@@ -111,7 +145,7 @@ async function generateCertificatePDF(
       height: 595,
     });
 
-    // Use custom fields if available, otherwise use defaults
+    // Use custom fields or defaults
     const fields = template?.fields && Array.isArray(template.fields) && template.fields.length > 0 
       ? template.fields 
       : [
@@ -120,7 +154,7 @@ async function generateCertificatePDF(
             label: "Attendee Name",
             value: "{{attendee_name}}",
             x: 421,
-            y: 260, // Changed from 335 to match other routes
+            y: 260,
             fontSize: 36,
             fontWeight: "bold",
             color: "#2C3E50",
@@ -150,20 +184,13 @@ async function generateCertificatePDF(
           }
         ];
 
-    console.log(`Using ${fields.length} text fields:`, fields.map((f: any) => ({ 
-      label: f.label, 
-      x: f.x, 
-      y: f.y, 
-      fontSize: f.fontSize 
-    })));
+    console.log(`[Certificate] Drawing ${fields.length} text fields`);
 
-    // Load fonts
     const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
     const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-    // Draw each text field
+    // Draw each field with text wrapping
     for (const field of fields) {
-      // Replace placeholders
       let text = field.value
         .replace(/\{\{attendee_name\}\}/g, attendeeName)
         .replace(/\{\{event_name\}\}/g, eventName)
@@ -184,31 +211,55 @@ async function generateCertificatePDF(
 
       const font = field.fontWeight === "bold" ? helveticaBold : helvetica;
       const color = hexToRgb(field.color);
-      const textWidth = font.widthOfTextAtSize(text, field.fontSize);
-
-      let x = field.x;
-      if (field.align === "center") {
-        x = field.x - textWidth / 2;
-      } else if (field.align === "right") {
-        x = field.x - textWidth;
-      }
-
-      // Convert Y coordinate from canvas (top=0) to PDF (bottom=0)
       const pdfY = 595 - field.y;
 
-      page.drawText(text, {
-        x: x,
-        y: pdfY,
-        size: field.fontSize,
-        font: font,
-        color: rgb(color.r, color.g, color.b),
-      });
+      // ✅ CRITICAL FIX: Wrap text to prevent overflow
+      const MAX_TEXT_WIDTH = 700;
+      const lines = wrapText(text, font, field.fontSize, MAX_TEXT_WIDTH);
+      const lineHeight = field.fontSize + 4;
+
+      let lineY = pdfY;
+
+      for (const line of lines) {
+        const lineWidth = font.widthOfTextAtSize(line, field.fontSize);
+        let drawX = field.x;
+
+        if (field.align === "center") {
+          drawX = field.x - lineWidth / 2;
+        } else if (field.align === "right") {
+          drawX = field.x - lineWidth;
+        }
+
+        // ✅ Validate coordinates
+        if (isNaN(drawX) || isNaN(lineY)) {
+          console.warn("[Certificate] Invalid coordinates, skipping:", { drawX, lineY, line });
+          continue;
+        }
+
+        page.drawText(line, {
+          x: drawX,
+          y: lineY,
+          size: field.fontSize,
+          font: font,
+          color: rgb(color.r, color.g, color.b),
+        });
+
+        lineY -= lineHeight;
+      }
     }
 
+    // ✅ Save and validate PDF
     const pdfBytes = await pdfDoc.save();
+    
+    if (!pdfBytes || pdfBytes.length === 0) {
+      throw new Error("Generated PDF is empty");
+    }
+
+    console.log(`[Certificate] PDF generated successfully: ${pdfBytes.length} bytes`);
     return Buffer.from(pdfBytes);
+    
   } catch (error) {
-    console.error("Error generating PDF:", error);
+    console.error("[Certificate] Generation error:", error);
     throw error;
   }
 }
@@ -254,7 +305,7 @@ export async function POST(req: Request) {
       );
     }
 
-    console.log(`Processing certificate for reference: ${referenceId}`);
+    console.log(`[Certificate] Processing for reference: ${referenceId}`);
 
     const { data: attendee, error: attendeeError } = await supabase
       .from("attendees")
@@ -263,7 +314,7 @@ export async function POST(req: Request) {
       .single();
 
     if (attendeeError || !attendee) {
-      console.error("Attendee error:", attendeeError);
+      console.error("[Certificate] Attendee error:", attendeeError);
       return NextResponse.json(
         { error: "Attendee not found" },
         { status: 404 }
@@ -272,6 +323,7 @@ export async function POST(req: Request) {
 
     const email = attendee.email?.trim();
     if (!email || !isValidEmail(email)) {
+      console.error("[Certificate] Invalid email:", email);
       return NextResponse.json(
         { error: "Invalid email address" },
         { status: 400 }
@@ -279,6 +331,7 @@ export async function POST(req: Request) {
     }
 
     if (!attendee.hasevaluation) {
+      console.log("[Certificate] Evaluation not completed");
       return NextResponse.json(
         { error: "Evaluation not completed" },
         { status: 400 }
@@ -286,23 +339,33 @@ export async function POST(req: Request) {
     }
 
     const event = attendee.events;
-    // Capitalize first letter of first name and last name
     const firstName = capitalizeAllLetters(attendee.personal_name);
     const lastName = capitalizeAllLetters(attendee.last_name);
     const fullName = `${firstName} ${lastName}`;
     const eventDate = formatEventDate(event.start_date, event.end_date);
 
-    console.log(`Generating certificate for: ${fullName}, Event ID: ${event.id}`);
+    console.log(`[Certificate] Generating for: ${fullName}, Event: ${event.id}`);
 
-    const certificatePDF = await generateCertificatePDF(
-      fullName,
-      event.name,
-      eventDate,
-      event.venue || "Philippines",
-      event.id
-    );
+    // ✅ Generate PDF with error handling
+    let certificatePDF: Buffer;
+    try {
+      certificatePDF = await generateCertificatePDF(
+        fullName,
+        event.name,
+        eventDate,
+        event.venue || "Philippines",
+        event.id,
+        "participation"
+      );
+    } catch (pdfError: any) {
+      console.error("[Certificate] PDF generation failed:", pdfError);
+      return NextResponse.json(
+        { error: "Failed to generate certificate", details: pdfError.message },
+        { status: 500 }
+      );
+    }
 
-    console.log("Certificate PDF generated successfully");
+    console.log("[Certificate] PDF generated, sending email");
 
     const mailOptions = {
       from: '"Petrosphere" <info@petros-global.com>',
@@ -311,11 +374,11 @@ export async function POST(req: Request) {
       html: `
         <div style="font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 30px;">
           <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 10px; overflow: hidden;">
-          <div style="background-color: #0e026aff; text-align: center; padding: 20px; border: 3px solid #1e1b4b; border-radius: 10px;">
-            <span style="color: white; font-size: 28px; font-weight: bold; letter-spacing: 1px;">
-              Petrosphere Incorporated
-            </span>
-          </div>
+            <div style="background-color: #0e026aff; text-align: center; padding: 20px; border: 3px solid #1e1b4b; border-radius: 10px;">
+              <span style="color: white; font-size: 28px; font-weight: bold; letter-spacing: 1px;">
+                Petrosphere Incorporated
+              </span>
+            </div>
 
             <div style="padding: 30px; color: #333;">
               <h2>Congratulations, ${firstName} ${lastName}!</h2>
@@ -344,16 +407,24 @@ export async function POST(req: Request) {
       ],
     };
 
-    await transporter.sendMail(mailOptions);
-
-    console.log(`Certificate sent successfully to: ${email}`);
+    // ✅ Send email with error handling
+    try {
+      await transporter.sendMail(mailOptions);
+      console.log(`[Certificate] Email sent successfully to: ${email}`);
+    } catch (emailError: any) {
+      console.error("[Certificate] Email sending failed:", emailError);
+      return NextResponse.json(
+        { error: "Failed to send email", details: emailError.message },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
       message: "Certificate sent successfully",
     });
   } catch (error: any) {
-    console.error("❌ Send Certificate Error:", error);
+    console.error("[Certificate] Unexpected error:", error);
     return NextResponse.json(
       { error: "Failed to send certificate", details: error.message },
       { status: 500 }
