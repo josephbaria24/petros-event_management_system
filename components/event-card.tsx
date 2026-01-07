@@ -56,10 +56,28 @@ export function EventCard({ event, onSelect }: { event: EventWithStats; onSelect
           </div>
 
           {/* Price */}
-          <div className="flex items-center gap-2 text-muted-foreground text-sm">
-            <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
-            <span>₱{Number(event.price).toLocaleString()}</span>
+          {/* Date & Price */}
+          <div className="flex items-center justify-between text-muted-foreground text-sm">
+            {/* Date */}
+            <div className="flex items-center gap-2">
+              <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
+              <span>
+                {event.start_date
+                  ? new Date(event.start_date).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })
+                  : "No date"}
+              </span>
+            </div>
+
+            {/* Price */}
+            <div className="flex items-center gap-1 font-medium text-foreground">
+              <span>₱{Number(event.price).toLocaleString()}</span>
+            </div>
           </div>
+
         </div>
       </CardContent>
     </Card>
