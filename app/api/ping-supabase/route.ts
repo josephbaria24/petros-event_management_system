@@ -21,7 +21,7 @@ export async function GET() {
   try {
     // 🟢 ultra-light ping (keeps Supabase awake)
     const { data, error } = await supabase
-      .from("courses")
+      .from("events")
       .select("id")
       .limit(1)
 
