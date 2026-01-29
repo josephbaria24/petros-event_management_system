@@ -70,6 +70,7 @@ export async function POST(req: Request) {
                        color: white; text-decoration: none; border-radius: 5px; margin: 20px 0;">
                 Complete Evaluation
               </a>
+               <p>If you have any questions or feedback, feel free to reach out to us through training-department@petrsphere.com.ph <br/></p>
               <p>Best regards,<br/>Petrosphere Team</p>
             </div>
           `,

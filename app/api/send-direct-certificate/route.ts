@@ -387,6 +387,7 @@ export async function POST(req: Request) {
               </p>
             </div>
             <div style="background-color: #f9fafb; padding: 20px; text-align: center; color: #666; font-size: 12px;">
+             <p>If you have any questions or feedback, feel free to reach out to us through training-department@petrsphere.com.ph <br/></p>
               <p>© ${new Date().getFullYear()} Petrosphere Inc. All rights reserved.</p>
             </div>
           </div>
