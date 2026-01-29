@@ -1,23 +1,45 @@
-import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { NextResponse } from "next/server"
+import { createClient } from "@supabase/supabase-js"
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+export const runtime = "nodejs"
 
 export async function GET() {
-  const now = new Date().toISOString();
-  console.log(`[PING] Running at ${now}`);
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!url || !key) {
+    console.error("[PING] Missing Supabase credentials.")
+    return NextResponse.json(
+      { success: false, error: "Missing Supabase credentials" },
+      { status: 500 }
+    )
+  }
+
+  const supabase = createClient(url, key)
+  const now = new Date().toISOString()
 
   try {
-    const { data, error } = await supabase.from('events').select('id').limit(1);
-    if (error) throw error;
+    // 🟢 ultra-light ping (keeps Supabase awake)
+    const { data, error } = await supabase
+      .from("courses")
+      .select("id")
+      .limit(1)
 
-    console.log(`[PING] Success! Returned ${data.length} rows`);
-    return NextResponse.json({ success: true, pingedAt: now });
+    if (error) throw error
+
+    console.log(`[PING] EMS Supabase ping successful at ${now}`)
+
+    return NextResponse.json({
+      success: true,
+      pingedAt: now,
+      rows: data?.length ?? 0,
+    })
   } catch (err: any) {
-    console.error(`[PING] Failed at ${now}:`, err.message);
-    return NextResponse.json({ success: false, error: err.message });
+    console.error(`[PING] Failed at ${now}:`, err.message)
+
+    return NextResponse.json(
+      { success: false, error: err.message },
+      { status: 500 }
+    )
   }
 }
