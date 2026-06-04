@@ -2,17 +2,17 @@
 
 import { useState } from "react"
 import type React from "react"
-import { Calendar, Settings, LogOut, Bell, Search, QrCode } from "lucide-react"
+import { usePathname, useRouter } from "next/navigation"
+import { Settings, LogOut, Bell, Search, QrCode } from "lucide-react"
 import { toast } from "sonner"
 import { supabase } from "@/lib/supabase-client"
 import { ModeToggle } from "./mode-toggle"
 
-interface NavigationProps {
-  currentEventId?: string | null
-  onQRScanClick?: () => void
-}
-
-export function Navigation({ currentEventId, onQRScanClick }: NavigationProps) {
+export function Navigation() {
+  const pathname = usePathname()
+  const router = useRouter()
+  const currentEventId = pathname?.match(/^\/events\/([^/]+)/)?.[1] ?? null
+  const isOnQrScan = pathname?.endsWith("/qr-scan")
   const [active, setActive] = useState<"events" | "qr" | "settings">("events")
 
   const handleComingSoon = () => {
@@ -21,16 +21,12 @@ export function Navigation({ currentEventId, onQRScanClick }: NavigationProps) {
 
   const handleQRScanner = () => {
     if (!currentEventId) {
-      toast.error("Please select an event first to use QR Scanner")
+      toast.error("Open an event first to use QR Scanner")
       return
     }
 
     setActive("qr")
-    if (onQRScanClick) {
-      onQRScanClick()
-    } else {
-      toast.success("📷 QR Scanner opened!")
-    }
+    router.push(`/events/${currentEventId}/qr-scan`)
   }
 
   const handleLogout = async () => {
@@ -70,7 +66,7 @@ export function Navigation({ currentEventId, onQRScanClick }: NavigationProps) {
               label="QR Scanner"
               onClick={handleQRScanner}
               disabled={!currentEventId}
-              active={active === "qr"}
+              active={active === "qr" || isOnQrScan}
             />
             <NavIcon
               icon={Settings}

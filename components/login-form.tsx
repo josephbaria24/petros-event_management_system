@@ -88,7 +88,7 @@ export function LoginForm({
           <CardHeader className="text-center pb-2">
             <div className="flex justify-center bg-primary p-2 rounded-lg mb-4 shadow-lg">
               <img
-                src="https://petrosphere.com.ph/wp-content/uploads/al_opt_content/IMAGE/petrosphere.com.ph/wp-content/uploads/2022/08/cropped-Petrosphere-Horizontal-Logo-white-with-clear-background-279x50.png.bv.webp?bv_host=petrosphere.com.ph"
+                src="/email-logo-horizontal.png"
                 alt="Petrosphere Logo"
                 className="w-80 h-auto object-contain"
               />

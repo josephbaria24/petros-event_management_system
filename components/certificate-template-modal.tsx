@@ -12,6 +12,7 @@ import { Upload, X, Plus, Trash2, Save, Eye, Loader2, Award, CalendarCheck, Trop
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 import { supabase } from "@/lib/supabase-client"
+import { CERTIFICATE_PREVIEW_ATTENDEE_NAME } from "@/lib/format-certificate-attendee-name"
 import React from "react"
 
 interface TextField {
@@ -41,7 +42,12 @@ interface CertificateTemplateModalProps {
 type TemplateType = "participation" | "awardee" | "attendance"
 
 const PLACEHOLDER_OPTIONS: PlaceholderOption[] = [
-  { value: "{{attendee_name}}", label: "Attendee Name", description: "Full name of the participant" },
+  {
+    value: "{{attendee_name}}",
+    label: "Attendee Name",
+    description:
+      "First, middle (initial gets a period), last, and comma before extension (e.g. JUAN M. CRUZ, JR.)",
+  },
   { value: "{{event_name}}", label: "Event Name", description: "Name of the event" },
   { value: "{{event_date}}", label: "Event Date", description: "Date range of the event" },
   { value: "{{event_venue}}", label: "Event Venue", description: "Location of the event" },
@@ -332,7 +338,7 @@ export default function CertificateTemplateModal({ eventId, open, onClose }: Cer
           ]
           
           displayText = displayText
-            .replace("{{attendee_name}}", "Juan Dela Cruz")
+            .replace("{{attendee_name}}", CERTIFICATE_PREVIEW_ATTENDEE_NAME)
             .replace("{{event_name}}", "Sample Conference 2024")
             .replace("{{event_date}}", "October 16-18, 2024")
             .replace("{{event_venue}}", "Manila, Philippines")

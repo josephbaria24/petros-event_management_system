@@ -2,7 +2,7 @@
 "use client"
 
 import { useState } from "react"
-import { Edit2, MoreVertical, FileUp, Award, Download, BarChart3, Upload, UserPlus, Mail, Palette, Users, CheckCircle2, CreditCard, Trash2 } from "lucide-react"
+import { Edit2, MoreVertical, FileUp, Award, Download, BarChart3, Upload, UserPlus, UserRoundPlus, Mail, Palette, Users, CheckCircle2, CreditCard, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -16,6 +16,7 @@ import ExportAttendeesModal from "@/components/export-attendees-modal"
 import DownloadCertificatesModal from "@/components/download-certificates-modal"
 import SendDirectCertificateModal from "@/components/send-direct-certificate-modal"
 import UploadAttendeesModal from "@/components/upload-attendees-modal"
+import AddAttendeeModal from "@/components/add-attendee-modal"
 import EvaluationResultsModal from "@/components/evaluation-results-modal"
 import { supabase } from "@/lib/supabase-client"
 
@@ -28,7 +29,13 @@ type EventWithStats = Omit<Event, "attendees"> & {
   allow_reevaluation?: boolean
 }
 
-export function EventDetailsCard({ event }: { event: EventWithStats }) {
+export function EventDetailsCard({
+  event,
+  onAttendeesChange,
+}: {
+  event: EventWithStats
+  onAttendeesChange?: () => void
+}) {
   const [isEditing, setIsEditing] = useState(false)
   const [editedEvent, setEditedEvent] = useState(event)
   const [topicInput, setTopicInput] = useState("")
@@ -73,9 +80,11 @@ export function EventDetailsCard({ event }: { event: EventWithStats }) {
   const [showDownloadCertificatesModal, setShowDownloadCertificatesModal] = useState(false)
   const [showSendDirectCertificateModal, setShowSendDirectCertificateModal] = useState(false)
   const [showUploadAttendeesModal, setShowUploadAttendeesModal] = useState(false)
+  const [showAddAttendeeModal, setShowAddAttendeeModal] = useState(false)
   const [showEvaluationResultsModal, setShowEvaluationResultsModal] = useState(false)
 
   const actions = [
+    { label: "Add Attendee", icon: UserRoundPlus },
     { label: "Open Registration", icon: UserPlus },
     { label: "Edit Certificate Template", icon: Palette },
     { label: "Send Evaluations", icon: Mail },
@@ -151,6 +160,9 @@ export function EventDetailsCard({ event }: { event: EventWithStats }) {
                     key={action.label}
                     className="cursor-pointer"
                     onClick={async () => {
+                      if (action.label === "Add Attendee") {
+                        setShowAddAttendeeModal(true)
+                      }
                       if (action.label === "Open Registration") {
                         if (!event.magic_link) {
                           alert("⚠️ This event doesn't have a registration link yet.")
@@ -522,9 +534,14 @@ export function EventDetailsCard({ event }: { event: EventWithStats }) {
         eventId={Number(event.id)}
         open={showUploadAttendeesModal}
         onClose={() => setShowUploadAttendeesModal(false)}
-        onSuccess={() => {
-          window.location.reload()
-        }}
+        onSuccess={onAttendeesChange}
+      />
+
+      <AddAttendeeModal
+        eventId={Number(event.id)}
+        open={showAddAttendeeModal}
+        onClose={() => setShowAddAttendeeModal(false)}
+        onSuccess={onAttendeesChange}
       />
 
       <EvaluationResultsModal

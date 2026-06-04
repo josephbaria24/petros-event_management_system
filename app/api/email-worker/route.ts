@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import { createClient } from "@supabase/supabase-js";
 import { generateCertificatePDF } from "@/lib/generateCertificatePDF";
-import { capitalizeFirstLetter, formatEventDate } from "@/lib/textHelpers";
+import { formatEventDate } from "@/lib/textHelpers";
+import { formatCertificateAttendeeName } from "@/lib/format-certificate-attendee-name";
+import { wrapEmailHtml } from "@/lib/email-templates";
 import type { EmailQueueJob, AttendeeWithEvent } from "@/types/queue";
 
 const supabase = createClient(
@@ -68,36 +70,28 @@ async function sendEvaluationEmail(job: EmailQueueJob) {
     from: `"Petrosphere" <no-reply@petros-global.com>`,
     to: job.email,
     subject: `Evaluation Form - ${eventName}`,
-    html: `
-      <div style="font-family: Arial, sans-serif; background-color: #ffffff; padding: 30px;">
-        <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 10px; overflow: hidden;">
-          <div style="background-color: #0e026aff; text-align: center; padding: 20px; border: 3px solid #1e1b4b;border-radius: 10px;">
-            <img src="https://petrosphere.com.ph/wp-content/uploads/al_opt_content/IMAGE/petrosphere.com.ph/wp-content/uploads/2022/08/cropped-Petrosphere-Horizontal-Logo-white-with-clear-background-279x50.png.bv.webp?bv_host=petrosphere.com.ph" 
-                alt="Petros Logo" 
-                style="height: 60px;" />
-          </div>
-          <div style="padding: 30px; color: #333;">
-            <h2>Hi, ${attendee?.personal_name} ${attendee?.last_name}!</h2>
-            <p>
-              Congratulations for completing the <strong>${eventName}</strong>.<br/><br/>
-              We would like to invite you to complete an evaluation about the said Conference.
-              Once done, you will receive another email with your digital certificate copy.
-            </p>
-            <p>You may take the evaluation by clicking the button below. Thank you!</p>
-            <div style="text-align: center; margin-top: 25px;">
-              <a href="${evalLink}"
-                style="background-color: #1e1b4b; color: #ffffff; padding: 12px 25px;
-                       border-radius: 6px; text-decoration: none; font-weight: bold;">
-                Take Evaluation
-              </a>
-            </div>
-            <p style="margin-top: 30px; color: #666; font-size: 14px;">
-              If you have any questions, please don't hesitate to contact info@petros-global.com
-            </p>
-          </div>
+    html: wrapEmailHtml(
+      `
+        <h2 style="margin-top: 0;">Hi, ${attendee?.personal_name} ${attendee?.last_name}!</h2>
+        <p>
+          Congratulations for completing the <strong>${eventName}</strong>.<br/><br/>
+          We would like to invite you to complete an evaluation about the said Conference.
+          Once done, you will receive another email with your digital certificate copy.
+        </p>
+        <p>You may take the evaluation by clicking the button below. Thank you!</p>
+        <div style="text-align: center; margin-top: 25px;">
+          <a href="${evalLink}"
+            style="background-color: #1e1b4b; color: #ffffff; padding: 12px 25px;
+                   border-radius: 6px; text-decoration: none; font-weight: bold; display: inline-block;">
+            Take Evaluation
+          </a>
         </div>
-      </div>
-    `,
+        <p style="margin-top: 30px; color: #666666; font-size: 14px;">
+          If you have any questions, please don't hesitate to contact info@petros-global.com
+        </p>
+      `,
+      { outerBackground: "#ffffff" }
+    ),
   });
 
   // Mark attendee as sent
@@ -123,9 +117,7 @@ async function sendCertificateEmail(job: EmailQueueJob) {
   // Cast to proper type - Supabase returns events as object
   const typedAttendee = attendee as unknown as AttendeeWithEvent;
   const event = typedAttendee.events;
-  const firstName = capitalizeFirstLetter(typedAttendee.personal_name);
-  const lastName = capitalizeFirstLetter(typedAttendee.last_name);
-  const fullName = `${firstName} ${lastName}`;
+  const fullName = formatCertificateAttendeeName(typedAttendee);
   const eventDate = formatEventDate(event.start_date, event.end_date);
 
   const pdf = await generateCertificatePDF(
@@ -147,29 +139,15 @@ async function sendCertificateEmail(job: EmailQueueJob) {
     from: `"Petrosphere Inc." <no-reply@petros-global.com>`,
     to: typedAttendee.email,
     subject: `Certificate of ${templateLabel} - ${event.name}`,
-    html: `
-      <div style="font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 30px;">
-        <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 10px; overflow: hidden;">
-          <div style="background-color: #0e026aff; text-align: center; padding: 20px; border: 3px solid #1e1b4b;border-radius: 10px;">
-            <img src="https://petrosphere.com.ph/wp-content/uploads/al_opt_content/IMAGE/petrosphere.com.ph/wp-content/uploads/2022/08/cropped-Petrosphere-Horizontal-Logo-white-with-clear-background-279x50.png.bv.webp?bv_host=petrosphere.com.ph" 
-                 alt="Petros Logo" 
-                 style="height: 60px;" />
-          </div>
-          <div style="padding: 30px; color: #333;">
-            <h2>Congratulations, ${firstName} ${lastName}!</h2>
-            <p>
-              Please find attached your <strong>Certificate of ${templateLabel}</strong> for <strong>${event.name}</strong>.
-            </p>
-            <p style="margin-top: 30px; color: #666; font-size: 14px;">
-              If you have any questions, please don't hesitate to contact info@petros-global.com
-            </p>
-          </div>
-          <div style="background-color: #f9fafb; padding: 20px; text-align: center; color: #666; font-size: 12px;">
-            <p>© ${new Date().getFullYear()} Petrosphere Inc. All rights reserved.</p>
-          </div>
-        </div>
-      </div>
-    `,
+    html: wrapEmailHtml(`
+      <h2 style="margin-top: 0;">Congratulations, ${fullName}!</h2>
+      <p>
+        Please find attached your <strong>Certificate of ${templateLabel}</strong> for <strong>${event.name}</strong>.
+      </p>
+      <p style="margin-top: 30px; color: #666666; font-size: 14px;">
+        If you have any questions, please don't hesitate to contact info@petros-global.com
+      </p>
+    `),
     attachments: [
       {
         filename: `Certificate_${templateLabel}_${fullName.replace(/\s+/g, "_")}.pdf`,

@@ -3,6 +3,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Plus, CalendarDays, Clock4, Users, CheckCircle2, CreditCard } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -63,7 +64,8 @@ async function fetchAllAttendees(eventId?: number) {
   return allAttendees
 }
 
-export function EventsDashboard({ onSelectEvent }: { onSelectEvent: (id: string) => void }) {
+export function EventsDashboard() {
+  const router = useRouter()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [events, setEvents] = useState<EventWithStats[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -382,7 +384,7 @@ export function EventsDashboard({ onSelectEvent }: { onSelectEvent: (id: string)
             </div>
             <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {upcomingEvents.map((event) => (
-                <EventCard key={event.id} event={event} onSelect={() => onSelectEvent(event.id)} />
+                <EventCard key={event.id} event={event} onSelect={() => router.push(`/events/${event.id}`)} />
               ))}
             </div>
           </>
@@ -400,7 +402,7 @@ export function EventsDashboard({ onSelectEvent }: { onSelectEvent: (id: string)
             </div>
             <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {pastEvents.map((event) => (
-                <EventCard key={event.id} event={event} onSelect={() => onSelectEvent(event.id)} />
+                <EventCard key={event.id} event={event} onSelect={() => router.push(`/events/${event.id}`)} />
               ))}
             </div>
           </>

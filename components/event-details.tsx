@@ -1,6 +1,7 @@
 // ============================================
 "use client"
 import { ArrowLeft } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { EventDetailsCard } from "@/components/event-details-card"
 import { AttendeesList } from "@/components/attendees-list"
@@ -19,8 +20,10 @@ type EventWithStats = Omit<Event, "attendees"> & {
   teams_join_url?: string | null
 }
 
-export function EventDetails({ eventId, onBack }: { eventId: string; onBack: () => void }) {
+export function EventDetails({ eventId }: { eventId: string }) {
+  const router = useRouter()
   const [event, setEvent] = useState<EventWithStats | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
     const fetchEvent = async () => {
@@ -101,7 +104,7 @@ export function EventDetails({ eventId, onBack }: { eventId: string; onBack: () 
     }
   
     fetchEvent()
-  }, [eventId])
+  }, [eventId, refreshKey])
 
   if (!event) {
     return (
@@ -116,7 +119,12 @@ export function EventDetails({ eventId, onBack }: { eventId: string; onBack: () 
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
-          <Button variant="outline" size="icon" onClick={onBack} className="rounded-lg bg-transparent">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => router.push("/")}
+            className="rounded-lg bg-transparent"
+          >
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
@@ -129,8 +137,9 @@ export function EventDetails({ eventId, onBack }: { eventId: string; onBack: () 
 
         {/* Two Column Layout */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <EventDetailsCard event={event} />
+          <EventDetailsCard event={event} onAttendeesChange={() => setRefreshKey((k) => k + 1)} />
           <AttendeesList
+            key={refreshKey}
             eventId={eventId}
             scheduleDates={event.schedule.map((s) => ({ date: s.date }))}
           />

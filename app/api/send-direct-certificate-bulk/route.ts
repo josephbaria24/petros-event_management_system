@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import { createClient } from "@supabase/supabase-js";
 import { EmailQueueManager, canSendEmailsToday } from "@/lib/email-queue";
+import { formatCertificateAttendeeName } from "@/lib/format-certificate-attendee-name";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 
 const supabase = createClient(
@@ -75,9 +76,7 @@ export async function POST(req: Request) {
       try {
         // Generate PDF (use existing logic)
         const event = attendee.events;
-        const firstName = attendee.personal_name.toUpperCase();
-        const lastName = attendee.last_name.toUpperCase();
-        const fullName = `${firstName} ${lastName}`;
+        const fullName = formatCertificateAttendeeName(attendee);
 
         // Generate certificate PDF here (copy from existing route)
         // const certificatePDF = await generateCertificatePDF(...)
@@ -89,7 +88,7 @@ export async function POST(req: Request) {
           subject: `Certificate - ${event.name}`,
           html: `
             <div style="font-family: Arial, sans-serif;">
-              <h2>Congratulations, ${firstName} ${lastName}!</h2>
+              <h2>Congratulations, ${fullName}!</h2>
               <p>Please find your certificate attached.</p>
             </div>
           `,
@@ -136,7 +135,7 @@ export async function POST(req: Request) {
       } catch (error: any) {
         failed.push({
           id: attendee.id,
-          name: `${attendee.personal_name} ${attendee.last_name}`,
+          name: formatCertificateAttendeeName(attendee),
           email: attendee.email,
           error: error.message,
         });

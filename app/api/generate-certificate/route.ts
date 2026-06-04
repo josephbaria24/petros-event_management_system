@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import fs from "fs/promises";
 import path from "path";
+import { formatCertificateAttendeeName } from "@/lib/format-certificate-attendee-name";
 
 
 function wrapText(
@@ -271,10 +272,7 @@ export async function POST(req: Request) {
 
     const event = attendee.events;
     
-    // UPDATED: Capitalize ALL letters
-    const firstName = capitalizeAllLetters(attendee.personal_name);
-    const lastName = capitalizeAllLetters(attendee.last_name);
-    const fullName = `${firstName} ${lastName}`;
+    const fullName = formatCertificateAttendeeName(attendee);
 
     const eventDate = formatEventDate(event.start_date, event.end_date);
 

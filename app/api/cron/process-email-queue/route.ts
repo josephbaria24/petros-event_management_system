@@ -16,6 +16,7 @@ import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import { createClient } from "@supabase/supabase-js";
 import { EmailQueueManager } from "@/lib/email-queue";
+import { formatCertificateAttendeeName } from "@/lib/format-certificate-attendee-name";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -160,7 +161,7 @@ async function processCertificateEmail(item: any) {
     }
   
     const event = attendee.events;
-    const fullName = `${attendee.personal_name.toUpperCase()} ${attendee.last_name.toUpperCase()}`;
+    const fullName = formatCertificateAttendeeName(attendee);
   
     // Generate certificate PDF (you need to add this function)
     // const certificatePDF = await generateCertificatePDF(...)

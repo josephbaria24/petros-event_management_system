@@ -13,6 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Progress } from "@/components/ui/progress"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { supabase } from "@/lib/supabase-client"
+import { formatAttendeeFullName } from "@/lib/format-attendee-name"
 
 interface Attendee {
   id: number
@@ -22,6 +23,7 @@ interface Attendee {
   personal_name: string
   middle_name?: string
   last_name: string
+  name_extension?: string
   mobile_number?: string
   date_of_birth?: string
   address?: string
@@ -75,12 +77,13 @@ export function AttendeesList({ eventId, scheduleDates }: { eventId: string; sch
         setAttendees(
           data.map((a: any) => ({
             id: a.id,
-            name: `${a.personal_name ?? ""} ${a.last_name ?? ""}`.trim(),
+            name: formatAttendeeFullName(a),
             email: a.email ?? "",
             attendance: a.attendance || [],
             personal_name: a.personal_name,
             middle_name: a.middle_name,
             last_name: a.last_name,
+            name_extension: a.name_extension,
             mobile_number: a.mobile_number,
             date_of_birth: a.date_of_birth,
             address: a.address,
@@ -179,6 +182,7 @@ export function AttendeesList({ eventId, scheduleDates }: { eventId: string; sch
       personal_name: attendee.personal_name,
       middle_name: attendee.middle_name,
       last_name: attendee.last_name,
+      name_extension: attendee.name_extension,
       email: attendee.email,
       mobile_number: attendee.mobile_number,
       date_of_birth: attendee.date_of_birth,
@@ -200,6 +204,7 @@ export function AttendeesList({ eventId, scheduleDates }: { eventId: string; sch
           personal_name: editForm.personal_name,
           middle_name: editForm.middle_name,
           last_name: editForm.last_name,
+          name_extension: editForm.name_extension || null,
           email: editForm.email,
           mobile_number: editForm.mobile_number,
           date_of_birth: editForm.date_of_birth,
@@ -217,7 +222,7 @@ export function AttendeesList({ eventId, scheduleDates }: { eventId: string; sch
               ? {
                   ...a,
                   ...editForm,
-                  name: `${editForm.personal_name} ${editForm.last_name}`.trim()
+                  name: formatAttendeeFullName(editForm)
                 }
               : a
           )
@@ -423,12 +428,13 @@ export function AttendeesList({ eventId, scheduleDates }: { eventId: string; sch
         setAttendees(
           data.map((a: any) => ({
             id: a.id,
-            name: `${a.personal_name ?? ""} ${a.last_name ?? ""}`.trim(),
+            name: formatAttendeeFullName(a),
             email: a.email ?? "",
             attendance: a.attendance || [],
             personal_name: a.personal_name,
             middle_name: a.middle_name,
             last_name: a.last_name,
+            name_extension: a.name_extension,
             mobile_number: a.mobile_number,
             date_of_birth: a.date_of_birth,
             address: a.address,
@@ -478,12 +484,13 @@ export function AttendeesList({ eventId, scheduleDates }: { eventId: string; sch
         setAttendees(
           data.map((a: any) => ({
             id: a.id,
-            name: `${a.personal_name ?? ""} ${a.last_name ?? ""}`.trim(),
+            name: formatAttendeeFullName(a),
             email: a.email ?? "",
             attendance: a.attendance || [],
             personal_name: a.personal_name,
             middle_name: a.middle_name,
             last_name: a.last_name,
+            name_extension: a.name_extension,
             mobile_number: a.mobile_number,
             date_of_birth: a.date_of_birth,
             address: a.address,
@@ -972,7 +979,7 @@ export function AttendeesList({ eventId, scheduleDates }: { eventId: string; sch
 
           <div className="grid gap-4 py-4">
             {/* Personal Information */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <Label htmlFor="personal_name">First Name *</Label>
                 <Input
@@ -995,6 +1002,15 @@ export function AttendeesList({ eventId, scheduleDates }: { eventId: string; sch
                   id="last_name"
                   value={editForm.last_name || ""}
                   onChange={(e) => setEditForm({ ...editForm, last_name: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="name_extension">Name Extension</Label>
+                <Input
+                  id="name_extension"
+                  placeholder="Jr., Sr., III"
+                  value={editForm.name_extension || ""}
+                  onChange={(e) => setEditForm({ ...editForm, name_extension: e.target.value })}
                 />
               </div>
             </div>
