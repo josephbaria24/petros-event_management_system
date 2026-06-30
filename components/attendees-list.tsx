@@ -2,7 +2,7 @@
 "use client"
 
 import { useEffect, useState, useMemo, useCallback } from "react"
-import { Calendar, Search, Pencil, Clock, TrendingUp, CheckCircle2, Zap, X, Mail, Send, AlertCircle, Users, Mic, UserCircle } from "lucide-react"
+import { Calendar, Search, Pencil, Clock, TrendingUp, CheckCircle2, Zap, X, Mail, Send, AlertCircle, Users, Mic, UserCircle, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -12,6 +12,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Progress } from "@/components/ui/progress"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { supabase } from "@/lib/supabase-client"
 import { formatAttendeeFullName } from "@/lib/format-attendee-name"
 
@@ -39,7 +49,7 @@ interface EventScheduleDate {
   date: string // ISO format e.g. "2025-11-06"
 }
 
-type QuickActionMode = "payment" | "attendance" | "email" | "organizer" | "speaker" | "attendee" | null
+type QuickActionMode = "payment" | "attendance" | "email" | "organizer" | "speaker" | "attendee" | "delete" | null
 
 interface EmailResult {
   name: string
@@ -48,7 +58,15 @@ interface EmailResult {
   error?: string
 }
 
-export function AttendeesList({ eventId, scheduleDates }: { eventId: string; scheduleDates: EventScheduleDate[] }) {
+export function AttendeesList({
+  eventId,
+  scheduleDates,
+  onAttendeesChange,
+}: {
+  eventId: string
+  scheduleDates: EventScheduleDate[]
+  onAttendeesChange?: () => void
+}) {
   const [searchQuery, setSearchQuery] = useState("")
   const [attendees, setAttendees] = useState<Attendee[]>([])
   const [editingAttendee, setEditingAttendee] = useState<Attendee | null>(null)
@@ -65,6 +83,8 @@ export function AttendeesList({ eventId, scheduleDates }: { eventId: string; sch
   const [emailProgress, setEmailProgress] = useState({ current: 0, total: 0 })
   const [emailResults, setEmailResults] = useState<EmailResult[]>([])
   const [showEmailResults, setShowEmailResults] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
     const fetchAttendees = async () => {
@@ -377,6 +397,11 @@ export function AttendeesList({ eventId, scheduleDates }: { eventId: string; sch
       return
     }
 
+    if (quickActionMode === "delete") {
+      setShowDeleteConfirm(true)
+      return
+    }
+
     if (quickActionMode === "email") {
       await sendConfirmationEmails()
       return
@@ -509,6 +534,28 @@ export function AttendeesList({ eventId, scheduleDates }: { eventId: string; sch
     
     handleCancelQuickAction()
   }
+
+  const deleteParticipants = async () => {
+    setIsDeleting(true)
+    try {
+      await supabase.from("email_queue").delete().in("attendee_id", selectedIds)
+
+      const { error } = await supabase.from("attendees").delete().in("id", selectedIds)
+      if (error) throw error
+
+      setAttendees((prev) => prev.filter((a) => !selectedIds.includes(a.id)))
+      setShowDeleteConfirm(false)
+      const count = selectedIds.length
+      handleCancelQuickAction()
+      onAttendeesChange?.()
+      alert(`Deleted ${count} participant(s)`)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to delete participants"
+      alert(`❌ ${message}`)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
   
   // Optimized filtering with useMemo
   const filteredAttendees = useMemo(() => {
@@ -630,18 +677,39 @@ export function AttendeesList({ eventId, scheduleDates }: { eventId: string; sch
                     <UserCircle className="h-4 w-4 mr-2" />
                     Mark as Attendee
                   </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => handleQuickActionSelect("delete")}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Participants
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
           </div>
 
           {quickActionMode && (
-            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div
+              className={`mt-4 p-4 rounded-lg border ${
+                quickActionMode === "delete"
+                  ? "bg-red-50 border-red-200"
+                  : "bg-blue-50 border-blue-200"
+              }`}
+            >
               <div className="flex flex-col gap-4">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <Zap className="h-5 w-5 text-blue-600 flex-shrink-0" />
-                    <span className="font-semibold text-blue-900 text-sm sm:text-base truncate">
+                    {quickActionMode === "delete" ? (
+                      <Trash2 className="h-5 w-5 text-red-600 flex-shrink-0" />
+                    ) : (
+                      <Zap className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                    )}
+                    <span
+                      className={`font-semibold text-sm sm:text-base truncate ${
+                        quickActionMode === "delete" ? "text-red-900" : "text-blue-900"
+                      }`}
+                    >
                       {quickActionMode === "payment" 
                         ? "Quick Mark as Fully Paid" 
                         : quickActionMode === "attendance"
@@ -652,6 +720,8 @@ export function AttendeesList({ eventId, scheduleDates }: { eventId: string; sch
                         ? "Quick Mark as Speaker"
                         : quickActionMode === "attendee"
                         ? "Quick Mark as Attendee"
+                        : quickActionMode === "delete"
+                        ? "Delete Participants"
                         : "Send Confirmation Emails"}
                     </span>
                   </div>
@@ -660,7 +730,7 @@ export function AttendeesList({ eventId, scheduleDates }: { eventId: string; sch
                     variant="ghost"
                     onClick={handleCancelQuickAction}
                     className="h-8 w-8 p-0 flex-shrink-0"
-                    disabled={isSendingEmails}
+                    disabled={isSendingEmails || isDeleting}
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -688,17 +758,23 @@ export function AttendeesList({ eventId, scheduleDates }: { eventId: string; sch
                   )}
                   
                   <div className="flex items-center justify-between sm:justify-start gap-3 flex-1">
-                    <span className="text-sm text-blue-700 font-medium">
+                    <span
+                      className={`text-sm font-medium ${
+                        quickActionMode === "delete" ? "text-red-700" : "text-blue-700"
+                      }`}
+                    >
                       {selectedIds.length} selected
                     </span>
                     
                     <Button 
                       size="sm" 
                       onClick={executeQuickAction}
+                      variant={quickActionMode === "delete" ? "destructive" : "default"}
                       disabled={
                         selectedIds.length === 0 || 
                         (quickActionMode === "attendance" && !selectedDate) ||
-                        isSendingEmails
+                        isSendingEmails ||
+                        isDeleting
                       }
                       className="whitespace-nowrap gap-2"
                     >
@@ -707,10 +783,12 @@ export function AttendeesList({ eventId, scheduleDates }: { eventId: string; sch
                           <Send className="h-4 w-4 animate-pulse" />
                           Sending...
                         </>
+                      ) : quickActionMode === "email" ? (
+                        "Send Emails"
+                      ) : quickActionMode === "delete" ? (
+                        `Delete ${selectedIds.length}`
                       ) : (
-                        <>
-                          {quickActionMode === "email" ? "Send Emails" : `Apply to ${selectedIds.length}`}
-                        </>
+                        `Apply to ${selectedIds.length}`
                       )}
                     </Button>
                   </div>
@@ -1097,6 +1175,31 @@ export function AttendeesList({ eventId, scheduleDates }: { eventId: string; sch
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedIds.length} participant(s)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove the selected participants from this event, including their
+              registration, attendance, and queued emails. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                deleteParticipants()
+              }}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }

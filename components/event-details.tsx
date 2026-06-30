@@ -142,6 +142,7 @@ export function EventDetails({ eventId }: { eventId: string }) {
             key={refreshKey}
             eventId={eventId}
             scheduleDates={event.schedule.map((s) => ({ date: s.date }))}
+            onAttendeesChange={() => setRefreshKey((k) => k + 1)}
           />
         </div>
       </div>
