@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { supabase } from "@/lib/supabase-client"
+import { normalizeAttendeeNameFields } from "@/lib/format-attendee-name"
 import * as XLSX from "xlsx"
 
 interface UploadAttendeesModalProps {
@@ -20,6 +21,7 @@ interface AttendeeRow {
   personal_name: string
   middle_name?: string
   last_name: string
+  name_extension?: string
   email?: string
   mobile_number?: string
   date_of_birth?: string
@@ -29,6 +31,27 @@ interface AttendeeRow {
   company_address?: string
   status?: string
   payment_status?: string
+}
+
+function normalizeUploadRow(row: AttendeeRow): AttendeeRow {
+  const names = normalizeAttendeeNameFields(row)
+  return {
+    ...row,
+    personal_name: names.personal_name,
+    middle_name: names.middle_name ?? undefined,
+    last_name: names.last_name,
+    name_extension: names.name_extension ?? undefined,
+  }
+}
+
+function normalizeUploadRows(rows: AttendeeRow[]): AttendeeRow[] {
+  return rows.map(normalizeUploadRow)
+}
+
+function formatUploadPreviewName(row: AttendeeRow): string {
+  return [row.personal_name, row.middle_name, row.last_name, row.name_extension]
+    .filter((part) => part?.trim())
+    .join(" ")
 }
 
 export default function UploadAttendeesModal({ eventId, open, onClose, onSuccess }: UploadAttendeesModalProps) {
@@ -46,7 +69,7 @@ export default function UploadAttendeesModal({ eventId, open, onClose, onSuccess
 
   const optionalHeaders = [
     { field: "middle_name", description: "Middle Name" },
-    
+    { field: "name_extension", description: "Name Extension (Jr., Sr., III) — or include after last name" },
     { field: "mobile_number", description: "Mobile Number" },
     { field: "date_of_birth", description: "Date of Birth (YYYY-MM-DD)" },
     { field: "address", description: "Address" },
@@ -62,6 +85,7 @@ export default function UploadAttendeesModal({ eventId, open, onClose, onSuccess
       "personal_name",
       "middle_name",
       "last_name",
+      "name_extension",
       "email",
       "mobile_number",
       "date_of_birth",
@@ -75,10 +99,11 @@ export default function UploadAttendeesModal({ eventId, open, onClose, onSuccess
 
     const sampleData = [
       [
-        "Juan",
-        "Dela",
-        "Cruz",
-        "juan.delacruz@email.com",
+        "Joseph",
+        "M",
+        "Baria",
+        "",
+        "joseph.baria@email.com",
         "+639123456789",
         "1990-01-15",
         "123 Main St, Manila",
@@ -118,7 +143,7 @@ export default function UploadAttendeesModal({ eventId, open, onClose, onSuccess
             return normalizedRow
           })
 
-          resolve(normalized)
+          resolve(normalizeUploadRows(normalized as AttendeeRow[]))
         } catch (err) {
           reject(new Error("Failed to parse file. Please ensure it's a valid CSV or Excel file."))
         }
@@ -234,9 +259,10 @@ export default function UploadAttendeesModal({ eventId, open, onClose, onSuccess
       // Prepare attendees data with auto-generated reference_id
       const attendees = rows.map((row) => ({
         event_id: eventId,
-        personal_name: row.personal_name.trim(),
-        middle_name: row.middle_name?.trim() || null,
-        last_name: row.last_name.trim(),
+        personal_name: row.personal_name,
+        middle_name: row.middle_name || null,
+        last_name: row.last_name,
+        name_extension: row.name_extension || null,
         email: row.email?.trim() || null,
         mobile_number: row.mobile_number?.trim() || null,
         date_of_birth: row.date_of_birth || null,
@@ -298,7 +324,8 @@ export default function UploadAttendeesModal({ eventId, open, onClose, onSuccess
             Upload Attendees
           </DialogTitle>
           <DialogDescription>
-            Import attendees from a CSV or Excel file
+            Import attendees from a CSV or Excel file. Names are auto-formatted (title case,
+            middle initials, and suffixes like Jr. are detected from the last name).
           </DialogDescription>
         </DialogHeader>
 
@@ -376,18 +403,22 @@ export default function UploadAttendeesModal({ eventId, open, onClose, onSuccess
                   <thead className="bg-muted">
                     <tr>
                       <th className="px-3 py-2 text-left">First Name</th>
+                      <th className="px-3 py-2 text-left">Middle</th>
                       <th className="px-3 py-2 text-left">Last Name</th>
+                      <th className="px-3 py-2 text-left">Ext.</th>
+                      <th className="px-3 py-2 text-left">Formatted Name</th>
                       <th className="px-3 py-2 text-left">Email</th>
-                      <th className="px-3 py-2 text-left">Company</th>
                     </tr>
                   </thead>
                   <tbody>
                     {preview.map((row, idx) => (
                       <tr key={idx} className="border-t">
                         <td className="px-3 py-2">{row.personal_name}</td>
+                        <td className="px-3 py-2">{row.middle_name || "-"}</td>
                         <td className="px-3 py-2">{row.last_name}</td>
+                        <td className="px-3 py-2">{row.name_extension || "-"}</td>
+                        <td className="px-3 py-2 font-medium">{formatUploadPreviewName(row)}</td>
                         <td className="px-3 py-2">{row.email || "-"}</td>
-                        <td className="px-3 py-2">{row.company || "-"}</td>
                       </tr>
                     ))}
                   </tbody>

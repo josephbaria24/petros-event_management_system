@@ -46,7 +46,7 @@ const PLACEHOLDER_OPTIONS: PlaceholderOption[] = [
     value: "{{attendee_name}}",
     label: "Attendee Name",
     description:
-      "First, middle (initial gets a period), last, and comma before extension (e.g. JUAN M. CRUZ, JR.)",
+      "First, middle (initial gets a period), last, and suffix with period (e.g. Joseph M. Baria Jr.)",
   },
   { value: "{{event_name}}", label: "Event Name", description: "Name of the event" },
   { value: "{{event_date}}", label: "Event Date", description: "Date range of the event" },

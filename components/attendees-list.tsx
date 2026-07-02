@@ -2,7 +2,7 @@
 "use client"
 
 import { useEffect, useState, useMemo, useCallback } from "react"
-import { Calendar, Search, Pencil, Clock, TrendingUp, CheckCircle2, Zap, X, Mail, Send, AlertCircle, Users, Mic, UserCircle, Trash2 } from "lucide-react"
+import { Calendar, Search, Pencil, Clock, TrendingUp, CheckCircle2, Zap, X, Mail, Send, AlertCircle, Users, Mic, UserCircle, Trash2, Copy, ArrowDown, ArrowUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Progress } from "@/components/ui/progress"
+import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -23,7 +24,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { supabase } from "@/lib/supabase-client"
-import { formatAttendeeFullName } from "@/lib/format-attendee-name"
+import { formatAttendeeFullName, normalizeAttendeeNameFields } from "@/lib/format-attendee-name"
+import { cn } from "@/lib/utils"
 
 interface Attendee {
   id: number
@@ -58,6 +60,54 @@ interface EmailResult {
   error?: string
 }
 
+function getAttendeeNameKey(attendee: Attendee): string {
+  const normalized = normalizeAttendeeNameFields(attendee)
+  return [normalized.personal_name, normalized.middle_name, normalized.last_name, normalized.name_extension]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase()
+}
+
+function buildDuplicateFlags(attendees: Attendee[]) {
+  const duplicateAttendeeIds = new Set<number>()
+  const duplicateReasons = new Map<number, string[]>()
+
+  const flagGroup = (ids: number[], reason: string) => {
+    if (ids.length <= 1) return
+    ids.forEach((id) => {
+      duplicateAttendeeIds.add(id)
+      const existing = duplicateReasons.get(id) ?? []
+      if (!existing.includes(reason)) {
+        duplicateReasons.set(id, [...existing, reason])
+      }
+    })
+  }
+
+  const emailGroups = new Map<string, number[]>()
+  const nameGroups = new Map<string, number[]>()
+
+  for (const attendee of attendees) {
+    const email = attendee.email?.trim().toLowerCase()
+    if (email) {
+      const emailIds = emailGroups.get(email) ?? []
+      emailIds.push(attendee.id)
+      emailGroups.set(email, emailIds)
+    }
+
+    const nameKey = getAttendeeNameKey(attendee)
+    if (nameKey) {
+      const nameIds = nameGroups.get(nameKey) ?? []
+      nameIds.push(attendee.id)
+      nameGroups.set(nameKey, nameIds)
+    }
+  }
+
+  emailGroups.forEach((ids) => flagGroup(ids, "Same email"))
+  nameGroups.forEach((ids) => flagGroup(ids, "Same name"))
+
+  return { duplicateAttendeeIds, duplicateReasons }
+}
+
 export function AttendeesList({
   eventId,
   scheduleDates,
@@ -85,6 +135,7 @@ export function AttendeesList({
   const [showEmailResults, setShowEmailResults] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [nameSort, setNameSort] = useState<"asc" | "desc">("asc")
 
   useEffect(() => {
     const fetchAttendees = async () => {
@@ -378,10 +429,10 @@ export function AttendeesList({
   }
 
   const toggleSelectAll = () => {
-    if (selectedIds.length === filteredAttendees.length) {
+    if (selectedIds.length === sortedAttendees.length) {
       setSelectedIds([])
     } else {
-      setSelectedIds(filteredAttendees.map(a => a.id))
+      setSelectedIds(sortedAttendees.map((a) => a.id))
     }
   }
 
@@ -569,6 +620,24 @@ export function AttendeesList({
     })
   }, [attendees, searchQuery])
 
+  const sortedAttendees = useMemo(() => {
+    const list = [...filteredAttendees]
+    list.sort((a, b) => {
+      const nameA = getAttendeeNameKey(a) || a.name.toLowerCase()
+      const nameB = getAttendeeNameKey(b) || b.name.toLowerCase()
+      const cmp = nameA.localeCompare(nameB, undefined, { sensitivity: "base" })
+      return nameSort === "asc" ? cmp : -cmp
+    })
+    return list
+  }, [filteredAttendees, nameSort])
+
+  const { duplicateAttendeeIds, duplicateReasons } = useMemo(
+    () => buildDuplicateFlags(attendees),
+    [attendees]
+  )
+
+  const duplicateCount = duplicateAttendeeIds.size
+
   const getStatusDisplay = useCallback((attendee: Attendee, date: string) => {
     const epochDate = new Date(date).getTime()
     const record = attendee.attendance.find((a) => a.date === epochDate)
@@ -630,6 +699,12 @@ export function AttendeesList({
               <CardTitle>Attendance Details</CardTitle>
               <CardDescription className="mt-2">
                 Showing: {filteredAttendees.length} Results
+                {duplicateCount > 0 && (
+                  <span className="text-amber-700 dark:text-amber-400">
+                    {" "}
+                    · {duplicateCount} duplicate{duplicateCount === 1 ? "" : "s"} flagged
+                  </span>
+                )}
               </CardDescription>
             </div>
 
@@ -867,7 +942,7 @@ export function AttendeesList({
                     <th className="text-left py-3 px-3 font-semibold sticky left-0 bg-background z-20">
                       <input
                         type="checkbox"
-                        checked={selectedIds.length === filteredAttendees.length && filteredAttendees.length > 0}
+                        checked={selectedIds.length === sortedAttendees.length && sortedAttendees.length > 0}
                         onChange={toggleSelectAll}
                         className="cursor-pointer"
                         disabled={isSendingEmails}
@@ -875,8 +950,22 @@ export function AttendeesList({
                     </th>
                   )}
                   <th className="text-center py-3 px-3 font-semibold bg-background">Actions</th>
-                  <th className={`text-left py-3 px-3 font-semibold bg-background ${quickActionMode ? '' : 'sticky left-0 z-20'}`}>
-                    Attendee
+                  <th
+                    className={`text-left py-3 px-3 font-semibold bg-background ${quickActionMode ? "" : "sticky left-0 z-20"}`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setNameSort((current) => (current === "asc" ? "desc" : "asc"))}
+                      className="inline-flex items-center gap-1.5 hover:text-foreground text-muted-foreground transition-colors"
+                      title={`Sort by name (${nameSort === "asc" ? "A–Z" : "Z–A"})`}
+                    >
+                      Attendee
+                      {nameSort === "asc" ? (
+                        <ArrowUp className="h-3.5 w-3.5" />
+                      ) : (
+                        <ArrowDown className="h-3.5 w-3.5" />
+                      )}
+                    </button>
                   </th>
                   <th className="text-center py-3 px-3 font-semibold bg-background">Roles</th>
                   <th className="text-center py-3 px-3 font-semibold bg-background">Payment Status</th>
@@ -892,13 +981,17 @@ export function AttendeesList({
                 </tr>
               </thead>
               <tbody>
-                {filteredAttendees.map((attendee) => {
+                {sortedAttendees.map((attendee) => {
                   const exempt = isPaymentExempt(attendee.roles)
+                  const isDuplicate = duplicateAttendeeIds.has(attendee.id)
+                  const duplicateReasonList = duplicateReasons.get(attendee.id) ?? []
+                  const rowHighlight = isDuplicate ? "bg-amber-50/90 hover:bg-amber-100/90" : "hover:bg-muted/50"
+                  const stickyCellBg = isDuplicate ? "bg-amber-50/90" : "bg-background"
                   
                   return (
-                    <tr key={attendee.id} className="border-b hover:bg-muted/50">
+                    <tr key={attendee.id} className={cn("border-b", rowHighlight)}>
                       {quickActionMode && (
-                        <td className="px-3 py-3 sticky left-0 bg-background z-10">
+                        <td className={cn("px-3 py-3 sticky left-0 z-10", stickyCellBg)}>
                           <input
                             type="checkbox"
                             checked={selectedIds.includes(attendee.id)}
@@ -908,7 +1001,7 @@ export function AttendeesList({
                           />
                         </td>
                       )}
-                      <td className="px-3 py-3 text-center bg-background">
+                      <td className={cn("px-3 py-3 text-center", stickyCellBg)}>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -919,8 +1012,33 @@ export function AttendeesList({
                           <Pencil className="h-4 w-4" />
                         </Button>
                       </td>
-                      <td className={`px-3 py-3 font-medium bg-background whitespace-nowrap ${quickActionMode ? '' : 'sticky left-0'}`}>
-                        {attendee.name}
+                      <td
+                        className={cn(
+                          "px-3 py-3 font-medium whitespace-nowrap",
+                          stickyCellBg,
+                          quickActionMode ? "" : "sticky left-0"
+                        )}
+                      >
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="truncate">{attendee.name}</span>
+                            {isDuplicate && (
+                              <Badge
+                                variant="outline"
+                                className="shrink-0 border-amber-400 bg-amber-100 text-amber-900 text-[10px] px-1.5 py-0"
+                                title={duplicateReasonList.join(" · ")}
+                              >
+                                <Copy className="h-3 w-3" />
+                                Duplicate
+                              </Badge>
+                            )}
+                          </div>
+                          {isDuplicate && (
+                            <span className="text-[11px] font-normal text-amber-800">
+                              {duplicateReasonList.join(" · ")}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-3 py-3 text-center bg-background">
                         <DropdownMenu>
